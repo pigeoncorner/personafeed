@@ -3,30 +3,112 @@ import json
 import re
 import shutil
 import subprocess
+import threading
 
 from backend.personas import PersonaProfile, get_static_profile
 
 _CLAUDE_BIN = shutil.which("claude")
 
 
+class ClaudeSession:
+    """Долгоживущий процесс claude CLI (stream-json).
+
+    Экономит ~10-20 сек старта Node на каждый вызов. Контекст сессии
+    накапливается, поэтому процесс перезапускается каждые MAX_REQUESTS.
+    """
+
+    MAX_REQUESTS = 15
+
+    def __init__(self, model: str = "haiku"):
+        self._model = model
+        self._proc: subprocess.Popen | None = None
+        self._count = 0
+
+    def _spawn(self) -> None:
+        if _CLAUDE_BIN is None:
+            raise RuntimeError("claude CLI not found in PATH")
+        self._proc = subprocess.Popen(
+            [
+                _CLAUDE_BIN, "-p", "--verbose",
+                "--input-format", "stream-json",
+                "--output-format", "stream-json",
+                "--model", self._model,
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+        )
+        self._count = 0
+
+    def close(self) -> None:
+        if self._proc is not None:
+            try:
+                self._proc.kill()
+            except OSError:
+                pass
+            self._proc = None
+
+    def _ensure_alive(self) -> None:
+        if (
+            self._proc is None
+            or self._proc.poll() is not None
+            or self._count >= self.MAX_REQUESTS
+        ):
+            self.close()
+            self._spawn()
+
+    def request(self, prompt: str, timeout: int = 120) -> str:
+        self._ensure_alive()
+        message = json.dumps({
+            "type": "user",
+            "message": {"role": "user", "content": [{"type": "text", "text": prompt}]},
+        })
+        watchdog = threading.Timer(timeout, self._proc.kill)
+        watchdog.start()
+        try:
+            self._proc.stdin.write(message + "\n")
+            self._proc.stdin.flush()
+            while True:
+                line = self._proc.stdout.readline()
+                if not line:
+                    raise RuntimeError("Claude CLI process closed unexpectedly")
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if event.get("type") == "result":
+                    self._count += 1
+                    if event.get("is_error"):
+                        raise RuntimeError(
+                            f"Claude CLI error: {str(event.get('result'))[:200]}"
+                        )
+                    return (event.get("result") or "").strip()
+        except (OSError, BrokenPipeError) as exc:
+            raise RuntimeError(f"Claude CLI pipe error: {exc}") from exc
+        finally:
+            watchdog.cancel()
+            if self._proc is not None and self._proc.poll() is not None:
+                self.close()
+
+
+_session = ClaudeSession()
+_session_lock = asyncio.Lock()
+
+
 def _call_claude_sync(prompt: str, timeout: int = 120) -> str:
-    if _CLAUDE_BIN is None:
-        raise RuntimeError("claude CLI not found in PATH")
-    result = subprocess.run(
-        [_CLAUDE_BIN, "-p", "--model", "haiku"],
-        input=prompt,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=timeout,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Claude CLI error: {result.stderr[:200]}")
-    return result.stdout.strip()
+    return _session.request(prompt, timeout)
 
 
 async def _call_claude(prompt: str) -> str:
-    return await asyncio.to_thread(_call_claude_sync, prompt)
+    async with _session_lock:
+        try:
+            return await asyncio.to_thread(_call_claude_sync, prompt)
+        except RuntimeError:
+            # один retry на свежем процессе
+            _session.close()
+            return await asyncio.to_thread(_call_claude_sync, prompt)
 
 
 def _parse_json(raw: str) -> dict:
