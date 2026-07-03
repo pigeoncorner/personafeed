@@ -7,7 +7,7 @@ from backend.services.ai import (
     ClaudeSession,
     _parse_json,
     curate_feed,
-    generate_persona_profile,
+    generate_topic,
 )
 
 
@@ -98,31 +98,18 @@ def test_parse_json_markdown_no_lang():
 
 
 @pytest.mark.asyncio
-async def test_generate_persona_profile_static():
-    # Базовые персонажи не вызывают subprocess
-    with patch("backend.services.ai._call_claude_sync") as mock:
-        profile = await generate_persona_profile("scientist", "ru")
-    mock.assert_not_called()
-    assert profile["id"] == "scientist"
-    assert "topics" in profile
-    assert "seed_queries" in profile
-
-
-@pytest.mark.asyncio
-async def test_generate_persona_profile_custom():
+async def test_generate_topic():
     fake_response = json.dumps({
-        "name": "Пчеловод",
-        "context": "Пчеловод следит за здоровьем пчелиных семей...",
-        "topics": ["beekeeping", "apiculture", "honey production"],
-        "seed_queries": ["beekeeping techniques 2024", "varroa mite treatment"],
-        "preferred_channels": ["Barnyard Bees"],
-        "preferred_publications": ["Bee Culture"],
+        "topic": "Археология звука",
+        "intro": "Учёные реконструируют голоса прошлого по древним артефактам.",
+        "queries": ["acoustic archaeology", "ancient sound reconstruction", "archaeoacoustics"],
+        "news_topics": ["archaeoacoustics research"],
     })
-    # Патчим синхронную функцию, чтобы не трогать глобальный asyncio.to_thread
     with patch("backend.services.ai._call_claude_sync", return_value=fake_response):
-        profile = await generate_persona_profile("beekeeper", "ru")
-    assert profile["name"] == "Пчеловод"
-    assert "beekeeping" in profile["topics"]
+        topic = await generate_topic("История", "Археология, древние цивилизации", "ru")
+    assert topic["topic"] == "Археология звука"
+    assert len(topic["queries"]) == 3
+    assert topic["news_topics"] == ["archaeoacoustics research"]
 
 
 @pytest.mark.asyncio
@@ -137,11 +124,10 @@ async def test_curate_feed():
         "top_searches": ["arxiv preprints", "quantum computing 2024"],
     })
 
-    from backend.personas import get_static_profile
-    profile = get_static_profile("scientist")
+    topic = {"topic": "Квантовые вычисления", "intro": "Почему это интересно."}
 
     with patch("backend.services.ai._call_claude_sync", return_value=fake_response):
-        result = await curate_feed(profile, [], [], "ru")
+        result = await curate_feed(topic, [], [], "ru")
 
     assert result["youtube"][0]["video_id"] == "abc123"
     assert result["news"][0]["source"] == "Nature"

@@ -2,8 +2,12 @@ from pydantic import BaseModel
 
 
 class FeedRequest(BaseModel):
-    persona: str
-    specialty: str | None = None
+    category: str
+    language: str = "ru"
+
+
+class SurpriseRequest(BaseModel):
+    categories: list[str]
     language: str = "ru"
 
 
@@ -28,9 +32,10 @@ class NewsItem(BaseModel):
 
 
 class FeedResponse(BaseModel):
-    persona_id: str
-    persona_name: str
-    persona_context: str
+    category_id: str
+    category_label: str
+    topic: str
+    intro: str
     youtube: list[VideoItem]
     news: list[NewsItem]
     searches: list[str]

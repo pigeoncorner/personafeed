@@ -1,11 +1,11 @@
 import asyncio
 import json
+import random
 import re
 import shutil
 import subprocess
 import threading
-
-from backend.personas import PersonaProfile, get_static_profile
+from datetime import date
 
 _CLAUDE_BIN = shutil.which("claude")
 
@@ -123,29 +123,43 @@ def _parse_json(raw: str) -> dict:
     return json.loads(raw)
 
 
-_PROFILE_PROMPT = """\
-You are a persona profiling assistant. Return ONLY valid JSON, no markdown, no explanation.
+# Случайный «угол» для вариативности surprise-тем
+_ANGLES = [
+    "the hidden history behind it",
+    "the science and mechanics behind it",
+    "the craft, process and people who make it",
+    "the economics and money behind it",
+    "an extreme or obscure niche within it",
+    "surprising connections to everyday life",
+    "how it works in other cultures and countries",
+    "myths, mistakes and misconceptions about it",
+]
 
-Generate an internet persona profile for: {persona}{specialty_hint}
-Response language for name/context fields: {language}
-Search queries must always be in English.
+_TOPIC_PROMPT = """\
+You are a serendipity engine like StumbleUpon. Return ONLY valid JSON, no markdown, no explanation.
+
+Category: {category} ({hint})
+Today: {today}
+Angle to explore: {angle}
+
+Invent ONE surprising, narrow, non-obvious topic within this category — something \
+a curious person would never think to search for themselves, but would find fascinating. \
+Avoid mainstream and obvious angles.
 
 Required JSON structure:
 {{
-  "name": "localized persona name",
-  "context": "2-3 sentence description of this persona's information diet (in {language})",
-  "topics": ["topic1", "topic2", "topic3", "topic4", "topic5"],
-  "seed_queries": ["english query 1", "english query 2", "english query 3", "english query 4"],
-  "preferred_channels": ["Channel1", "Channel2", "Channel3"],
-  "preferred_publications": ["Publication1", "Publication2", "Publication3"]
+  "topic": "short topic name (in {language})",
+  "intro": "1-2 sentences (in {language}): why this is fascinating",
+  "queries": ["specific english youtube query 1", "query 2", "query 3"],
+  "news_topics": ["english news query 1", "query 2"]
 }}
 """
 
 _CURATION_PROMPT = """\
 You are a content curation assistant. Return ONLY valid JSON, no markdown, no explanation.
 
-Persona: {persona_name}
-Context: {persona_context}
+Topic: {topic}
+Why interesting: {intro}
 
 Raw YouTube results:
 {youtube_raw}
@@ -153,8 +167,9 @@ Raw YouTube results:
 Raw News results:
 {news_raw}
 
-Select and rank the most relevant items for this persona. Add a brief why_relevant explanation \
-(1 sentence, in {language}) for each item. Keep up to 10 YouTube items and 8 news items.
+Select and rank the most relevant and highest-quality items for this topic. Add a brief \
+why_relevant explanation (1 sentence, in {language}) for each item. Keep up to 10 YouTube \
+items and 8 news items.
 
 Required JSON structure:
 {{
@@ -169,41 +184,33 @@ Required JSON structure:
 """
 
 
-async def generate_persona_profile(
-    persona: str, language: str = "ru", specialty: str | None = None
-) -> PersonaProfile:
-    static = get_static_profile(persona)
-    if static:
-        return static
-
-    specialty_hint = f" (specialty: {specialty})" if specialty else ""
-    prompt = _PROFILE_PROMPT.format(
-        persona=persona,
-        specialty_hint=specialty_hint,
+async def generate_topic(category_label: str, hint: str, language: str = "ru") -> dict:
+    prompt = _TOPIC_PROMPT.format(
+        category=category_label,
+        hint=hint or "anything within this category",
+        today=date.today().isoformat(),
+        angle=random.choice(_ANGLES),
         language=language,
     )
     raw = await _call_claude(prompt)
     data = _parse_json(raw)
     return {
-        "id": persona,
-        "name": data["name"],
-        "context": data["context"],
-        "topics": data["topics"],
-        "seed_queries": data["seed_queries"],
-        "preferred_channels": data.get("preferred_channels", []),
-        "preferred_publications": data.get("preferred_publications", []),
+        "topic": data["topic"],
+        "intro": data.get("intro", ""),
+        "queries": data["queries"],
+        "news_topics": data.get("news_topics", []),
     }
 
 
 async def curate_feed(
-    profile: PersonaProfile,
+    topic: dict,
     youtube_raw: list[dict],
     news_raw: list[dict],
     language: str = "ru",
 ) -> dict:
     prompt = _CURATION_PROMPT.format(
-        persona_name=profile["name"],
-        persona_context=profile["context"],
+        topic=topic["topic"],
+        intro=topic.get("intro", ""),
         youtube_raw=json.dumps(youtube_raw, ensure_ascii=False),
         news_raw=json.dumps(news_raw, ensure_ascii=False),
         language=language,
