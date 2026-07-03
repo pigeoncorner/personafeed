@@ -1,43 +1,46 @@
-# PersonaFeed — Редизайн UI: клон интерфейса YouTube
+# PersonaFeed — серендипити по категориям (пивот от персонажей)
 
 ## Задача
 
-Заменить текущий тёмный интерфейс со списком видео на клон интерфейса YouTube.
-Цель — эффект узнавания: «это ютуб, но глазами другого человека».
+Отказаться от персонажей. Модель cloudhiker.net: пользователь выбирает категории →
+система выдаёт неожиданный свежий контент из них. Плюс ускорение AI-вызовов
+(warm CLI-сессия) и свежесть ленты (publishedAfter + дата в ключе кеша).
 
-Ключевые элементы:
-- Светлая тема, вёрстка как у youtube.com.
-- Топбар: логотип PersonaFeed, поле поиска (ввод кастомного персонажа), справа — «аватар» текущей персоны.
-- Ряд chips под топбаром (как категории YouTube) — выбор базовых персонажей.
-- Сетка видеокарточек: превью, длительность на превью, название, канал, «N просмотров · X назад».
-- `why_relevant` — тонкая строка-аннотация под мета-информацией (фирменная фича, но не ломает YouTube-паттерн).
-- Новости — горизонтальная «полка» внутри ленты (как news shelf на главной YouTube).
-- Клик по видео → модальный плеер с iframe-embed + аннотация «почему это в твоей ленте».
-- Секция «Поиск» → блок «Недавние запросы персоны» в сайдбаре/под chips.
-
-## Изменения бэкенда
-
-Для YouTube-вида карточкам нужны данные, которых сейчас нет:
-- `video_id`, `duration` (сек), `views`, `published_at` в `VideoItem`.
-- В `youtube.py` после `search()` — один вызов `videos().list(part="contentDetails,statistics")`
-  по всем id (1 unit, дёшево) + парсер ISO8601-длительности (`PT1H2M3S` → 3723).
+YouTube-клон UI сохраняется, меняется наполнение.
 
 ## Шаги реализации
 
-1. Бэкенд: обогащение видео (`videos.list`), парсер длительности, новые поля в `VideoItem` → verify: unit-тесты.
-2. Фронтенд: топбар + chips + сетка карточек (index.html, style.css, app.js — переписать) → verify: визуально в браузере.
-3. Фронтенд: модальный плеер (iframe embed) + полка новостей + блок запросов → verify: визуально.
-4. Форматирование мета-данных на фронте: «1,2 млн просмотров», «3 дня назад», «12:34» → verify: визуально.
-5. Прогон всех тестов, коммит, пуш.
+1. **Warm CLI-сессия** (`ai.py`): долгоживущий процесс `claude -p --input-format stream-json
+   --output-format stream-json`, класс `ClaudeSession` (lazy start, asyncio.Lock,
+   рестарт каждые ~15 запросов и при падении). Сигнатура `_call_claude()` не меняется.
+   → verify: smoke-тест CLI + unit-тесты с mock Popen.
+2. **Категории** (`categories.py` вместо `personas.py`, ~18 шт. по образцу cloudhiker):
+   `GET /categories`, `POST /feed {category}` (кеш с датой в ключе),
+   `POST /surprise {categories[]}` (random категория → Claude придумывает niche-тему,
+   без кеша топика). Промпт `_TOPIC_PROMPT` вместо `_PROFILE_PROMPT`.
+   `FeedResponse`: `{category_id, category_label, topic, intro, youtube[], news[], searches[], cached}`.
+   → verify: unit-тесты endpoint'ов.
+3. **Свежесть** (`youtube.py`): `publishedAfter` = now−30d, микс order relevance/date.
+   → verify: unit-тест параметров вызова.
+4. **Фронтенд**: онбординг «Выбери категории» (localStorage), chips = выбранные категории + «⚙»,
+   кнопка «🎲 Удиви меня» в топбаре, баннер с темой/intro, поиск = «своя тема».
+   → verify: визуально в браузере.
+5. Все тесты зелёные → коммит → пуш.
 
 ## Unit-тесты
 
-- [ ] `test_parse_duration` — ISO8601 `PT1H2M3S` → 3723, `PT45S` → 45, `PT10M` → 600.
-- [ ] `test_search_videos_enriched` — mock API: результат содержит `duration`, `views`, `published_at`.
-- [ ] `test_search_videos_dedup` — дедупликация по video_id сохранилась после обогащения.
-- [ ] `test_feed_response_fields` — POST /feed отдаёт VideoItem с новыми полями (mock сервисов).
+- [x] `test_ai.py::test_session_request_response` — warm-сессия: запрос/ответ JSONL (mock Popen).
+- [x] `test_ai.py::test_session_restart_after_n` — рестарт процесса после N запросов.
+- [x] `test_ai.py::test_session_respawn_on_death` — respawn при падении процесса + retry.
+- [x] `test_feed.py::test_get_categories` — GET /categories отдаёт список.
+- [x] `test_feed.py::test_feed_cache_key_has_date` — ключ кеша содержит дату.
+- [x] `test_feed.py::test_surprise_picks_from_list` — категория выбрана из переданных, есть topic/intro.
+- [x] `test_feed.py::test_surprise_not_cached` — повторный surprise генерирует новый топик.
+- [x] `test_youtube.py::test_search_passes_published_after` — publishedAfter передаётся в API.
 
-## Вне скоупа (следующие задачи)
+Все 28 тестов зелёные (04.07.2026).
 
-- Направление 2: свежесть (`publishedAfter`, дата в ключе кеша, «угол дня»).
-- Направление 1: кнопка «Удиви меня» (серендипити) — ляжет в топбар рядом с поиском.
+## Риски
+
+- YouTube-квота: surprise ≈ 300–400 units → ~25 кликов/день. Смягчение: 3 запроса, кеш 30 мин на повторные seed-запросы.
+- Формат stream-json проверить smoke-тестом до реализации.

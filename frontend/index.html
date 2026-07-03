@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PersonaFeed — интернет глазами другого человека</title>
+  <title>PersonaFeed — выйди из своего пузыря</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -15,40 +15,48 @@
     </div>
     <div class="topbar-center">
       <div class="search-box">
-        <input id="custom-input" type="text" placeholder="Чьими глазами смотреть? Например: пожарный, шеф-повар..." />
+        <input id="custom-input" type="text" placeholder="Своя тема: «пчеловодство», «стеклодувы»…" />
         <button id="custom-btn" title="Показать ленту">🔍</button>
       </div>
     </div>
     <div class="topbar-right">
-      <div id="persona-avatar" class="avatar hidden" title=""></div>
+      <button id="surprise-btn" class="hidden" title="Случайная тема из твоих категорий">🎲 Удиви меня</button>
     </div>
   </header>
 
   <!-- Chips -->
-  <nav id="chips-row"></nav>
+  <nav id="chips-row" class="hidden"></nav>
 
-  <!-- Persona banner -->
-  <div id="persona-banner" class="hidden">
+  <!-- Topic banner -->
+  <div id="topic-banner" class="hidden">
     <span id="banner-text"></span>
   </div>
 
   <main>
+    <!-- Onboarding: category selection -->
+    <section id="onboarding" class="hidden">
+      <h2>Выбери свои категории</h2>
+      <p class="onboarding-sub">По ним мы будем находить неожиданный контент. Минимум одна.</p>
+      <div id="category-grid"></div>
+      <button id="onboarding-continue" disabled>Продолжить</button>
+    </section>
+
     <!-- Empty state -->
-    <section id="empty-state">
-      <h2>Посмотри на YouTube чужими глазами</h2>
-      <p>Выбери персонажа сверху — и увидишь его ленту</p>
+    <section id="empty-state" class="hidden">
+      <h2>Готово!</h2>
+      <p>Жми «🎲 Удиви меня» или выбери категорию сверху</p>
     </section>
 
     <!-- Skeleton loading -->
     <section id="loading" class="hidden">
-      <div class="loading-note">Собираем ленту персонажа — первый запрос занимает до минуты…</div>
+      <div class="loading-note" id="loading-note">Придумываем неожиданную тему…</div>
       <div id="skeleton-grid" class="video-grid"></div>
     </section>
 
     <!-- Feed -->
     <section id="feed" class="hidden">
       <div id="searches-block" class="hidden">
-        <span class="searches-label">Персона искала:</span>
+        <span class="searches-label">Что искали:</span>
         <span id="searches-chips"></span>
       </div>
       <div id="video-grid" class="video-grid"></div>

@@ -1,13 +1,9 @@
-const PERSONAS = [
-  { id: "scientist", emoji: "🔬", label: "Учёный-физик" },
-  { id: "teacher",   emoji: "📚", label: "Учитель" },
-  { id: "founder",   emoji: "💼", label: "Стартап-фаундер" },
-  { id: "doctor",    emoji: "👩‍⚕️", label: "Врач" },
-];
-
 const $ = (id) => document.getElementById(id);
 
-let currentPersona = null;
+const STORAGE_KEY = "pf_categories";
+
+let allCategories = [];   // из GET /categories
+let selectedIds = [];     // выбранные пользователем
 
 /* ---------- Formatting ---------- */
 
@@ -64,25 +60,73 @@ function escHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-/* ---------- Rendering ---------- */
+/* ---------- Onboarding ---------- */
+
+function renderOnboarding() {
+  const grid = $("category-grid");
+  grid.innerHTML = "";
+  allCategories.forEach(({ id, emoji, label, hint }) => {
+    const card = document.createElement("div");
+    card.className = "category-card" + (selectedIds.includes(id) ? " selected" : "");
+    card.dataset.id = id;
+    card.innerHTML = `
+      <span class="cat-emoji">${emoji}</span>
+      <span class="cat-label">${escHtml(label)}</span>
+      <span class="cat-hint">${escHtml(hint)}</span>`;
+    card.addEventListener("click", () => {
+      const idx = selectedIds.indexOf(id);
+      if (idx === -1) selectedIds.push(id);
+      else selectedIds.splice(idx, 1);
+      card.classList.toggle("selected");
+      $("onboarding-continue").disabled = selectedIds.length === 0;
+    });
+    grid.appendChild(card);
+  });
+  $("onboarding-continue").disabled = selectedIds.length === 0;
+}
+
+function finishOnboarding() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
+  renderChips();
+  $("chips-row").classList.remove("hidden");
+  $("surprise-btn").classList.remove("hidden");
+  showState("empty-state");
+}
+
+/* ---------- Chips ---------- */
 
 function renderChips() {
   const row = $("chips-row");
-  PERSONAS.forEach(({ id, emoji, label }) => {
+  row.innerHTML = "";
+  selectedIds.forEach((id) => {
+    const cat = allCategories.find((c) => c.id === id);
+    if (!cat) return;
     const chip = document.createElement("button");
     chip.className = "chip";
-    chip.dataset.persona = id;
-    chip.textContent = `${emoji} ${label}`;
+    chip.dataset.category = id;
+    chip.textContent = `${cat.emoji} ${cat.label}`;
     chip.addEventListener("click", () => loadFeed(id));
     row.appendChild(chip);
   });
+  const settings = document.createElement("button");
+  settings.className = "chip";
+  settings.title = "Изменить категории";
+  settings.textContent = "⚙";
+  settings.addEventListener("click", () => {
+    renderOnboarding();
+    $("topic-banner").classList.add("hidden");
+    showState("onboarding");
+  });
+  row.appendChild(settings);
 }
 
-function setActiveChip(personaId) {
+function setActiveChip(categoryId) {
   document.querySelectorAll(".chip").forEach((c) => {
-    c.classList.toggle("active", c.dataset.persona === personaId);
+    c.classList.toggle("active", !!categoryId && c.dataset.category === categoryId);
   });
 }
+
+/* ---------- Rendering ---------- */
 
 function renderSkeletons() {
   const grid = $("skeleton-grid");
@@ -175,22 +219,18 @@ function closePlayer() {
 /* ---------- Feed loading ---------- */
 
 function showState(state) {
-  ["empty-state", "loading", "feed"].forEach((id) => $(id).classList.add("hidden"));
+  ["onboarding", "empty-state", "loading", "feed"].forEach((id) => $(id).classList.add("hidden"));
   $(state).classList.remove("hidden");
 }
 
-async function loadFeed(personaId, customText) {
-  currentPersona = personaId;
-  setActiveChip(personaId);
+async function fetchFeed(url, body) {
   renderSkeletons();
   showState("loading");
-  $("persona-banner").classList.add("hidden");
-
-  const body = { persona: customText || personaId, language: "ru" };
+  $("topic-banner").classList.add("hidden");
 
   let data;
   try {
-    const res = await fetch("/feed", {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -207,21 +247,20 @@ async function loadFeed(personaId, customText) {
     return;
   }
 
-  // Banner + avatar
-  $("banner-text").textContent = `Ты смотришь глазами: ${data.persona_name}. ${data.persona_context}`;
-  $("persona-banner").classList.remove("hidden");
-  const avatar = $("persona-avatar");
-  const known = PERSONAS.find((p) => p.id === personaId);
-  avatar.textContent = known ? known.emoji : "👤";
-  avatar.title = data.persona_name;
-  avatar.classList.remove("hidden");
+  renderFeed(data, url === "/surprise");
+}
 
-  // Videos
+function renderFeed(data, isSurprise) {
+  const cat = allCategories.find((c) => c.id === data.category_id);
+  const emoji = isSurprise ? "🎲" : (cat ? cat.emoji : "🔍");
+  $("banner-text").textContent =
+    `${emoji} ${data.category_label} → ${data.topic}. ${data.intro}`;
+  $("topic-banner").classList.remove("hidden");
+
   const grid = $("video-grid");
   grid.innerHTML = "";
   (data.youtube || []).forEach((v) => grid.appendChild(renderVideoCard(v)));
 
-  // Searches
   const searches = data.searches || [];
   const chips = $("searches-chips");
   chips.innerHTML = "";
@@ -233,28 +272,66 @@ async function loadFeed(personaId, customText) {
   });
   $("searches-block").classList.toggle("hidden", searches.length === 0);
 
-  // News shelf
   const news = data.news || [];
   const row = $("news-row");
   row.innerHTML = "";
   news.forEach((n) => row.appendChild(renderNewsCard(n)));
-  $("news-title").textContent = `Новости для персоны «${data.persona_name}»`;
+  $("news-title").textContent = `Новости по теме «${data.topic}»`;
   $("news-shelf").classList.toggle("hidden", news.length === 0);
 
   showState("feed");
 }
 
+function loadFeed(category) {
+  setActiveChip(category);
+  fetchFeed("/feed", { category, language: "ru" });
+}
+
+function loadSurprise() {
+  setActiveChip(null);
+  fetchFeed("/surprise", { categories: selectedIds, language: "ru" });
+}
+
+/* ---------- Init ---------- */
+
+async function init() {
+  try {
+    const res = await fetch("/categories");
+    allCategories = await res.json();
+  } catch (e) {
+    alert("Не удалось загрузить категории. Проверьте, что сервер запущен.");
+    return;
+  }
+
+  const stored = localStorage.getItem(STORAGE_KEY);
+  selectedIds = stored ? JSON.parse(stored) : [];
+  selectedIds = selectedIds.filter((id) => allCategories.some((c) => c.id === id));
+
+  if (selectedIds.length === 0) {
+    renderOnboarding();
+    showState("onboarding");
+  } else {
+    renderChips();
+    $("chips-row").classList.remove("hidden");
+    $("surprise-btn").classList.remove("hidden");
+    showState("empty-state");
+  }
+}
+
 /* ---------- Events ---------- */
+
+$("onboarding-continue").addEventListener("click", finishOnboarding);
+$("surprise-btn").addEventListener("click", loadSurprise);
 
 $("custom-btn").addEventListener("click", () => {
   const val = $("custom-input").value.trim();
-  if (val) loadFeed(null, val);
+  if (val) { setActiveChip(null); fetchFeed("/feed", { category: val, language: "ru" }); }
 });
 
 $("custom-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     const val = $("custom-input").value.trim();
-    if (val) loadFeed(null, val);
+    if (val) { setActiveChip(null); fetchFeed("/feed", { category: val, language: "ru" }); }
   }
 });
 
@@ -264,4 +341,4 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("player-modal").classList.contains("hidden")) closePlayer();
 });
 
-renderChips();
+init();
