@@ -8,10 +8,14 @@ class FeedRequest(BaseModel):
 
 
 class VideoItem(BaseModel):
+    video_id: str = ""
     title: str
     channel: str
     url: str
     thumbnail: str
+    duration: int = 0
+    views: int = 0
+    published_at: str = ""
     why_relevant: str = ""
 
 

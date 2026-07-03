@@ -79,10 +79,14 @@ async def get_feed(req: FeedRequest):
             raw = id_to_raw.get(item.get("video_id"), {})
             curated_youtube.append(
                 VideoItem(
+                    video_id=item.get("video_id", ""),
                     title=item.get("title") or raw.get("title", ""),
                     channel=item.get("channel") or raw.get("channel", ""),
                     url=raw.get("url", f"https://www.youtube.com/watch?v={item.get('video_id','')}"),
                     thumbnail=raw.get("thumbnail", ""),
+                    duration=raw.get("duration", 0),
+                    views=raw.get("views", 0),
+                    published_at=raw.get("published_at", ""),
                     why_relevant=item.get("why_relevant", ""),
                 )
             )
@@ -103,10 +107,14 @@ async def get_feed(req: FeedRequest):
         logger.warning("Curation failed, returning raw results: %s", exc)
         curated_youtube = [
             VideoItem(
+                video_id=v["video_id"],
                 title=v["title"],
                 channel=v["channel"],
                 url=v["url"],
                 thumbnail=v["thumbnail"],
+                duration=v.get("duration", 0),
+                views=v.get("views", 0),
+                published_at=v.get("published_at", ""),
             )
             for v in youtube_raw
         ]

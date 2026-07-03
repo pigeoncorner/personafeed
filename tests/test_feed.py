@@ -23,7 +23,8 @@ def _fake_curate_response():
 
 def _fake_youtube_raw():
     return [{"video_id": "v1", "title": "Physics Lecture", "channel": "MIT OCW",
-             "url": "https://www.youtube.com/watch?v=v1", "thumbnail": "https://img/v1.jpg"}]
+             "url": "https://www.youtube.com/watch?v=v1", "thumbnail": "https://img/v1.jpg",
+             "duration": 3723, "views": 123456, "published_at": "2026-06-01T00:00:00Z"}]
 
 
 def _fake_news_raw():
@@ -54,6 +55,22 @@ def test_feed_scientist_returns_valid_response():
     assert len(data["youtube"]) == 1
     assert data["youtube"][0]["why_relevant"] == "Ключевая лекция"
     assert data["cached"] is False
+
+
+def test_feed_response_fields():
+    curated = json.loads(_fake_curate_response())
+    with (
+        patch("backend.services.youtube.search_videos", return_value=_fake_youtube_raw()),
+        patch("backend.services.news.search_news", new=AsyncMock(return_value=_fake_news_raw())),
+        patch("backend.services.ai.curate_feed", new=AsyncMock(return_value=curated)),
+    ):
+        response = client.post("/feed", json={"persona": "scientist", "language": "ru"})
+
+    video = response.json()["youtube"][0]
+    assert video["video_id"] == "v1"
+    assert video["duration"] == 3723
+    assert video["views"] == 123456
+    assert video["published_at"] == "2026-06-01T00:00:00Z"
 
 
 def test_feed_cached_on_second_request():
