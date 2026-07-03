@@ -76,6 +76,22 @@ def test_search_videos_deduplication():
     assert len(results) == 1
 
 
+def test_search_passes_published_after():
+    items = [_make_item("v1", "Title 1", "Chan A")]
+    mock = _mock_yt([items, items], [_make_details("v1")])
+    with patch("backend.services.youtube._client", return_value=mock):
+        search_videos(["query1", "query2"], freshness_days=30)
+
+    calls = mock.search.return_value.list.call_args_list
+    assert len(calls) == 2
+    for call in calls:
+        assert "publishedAfter" in call.kwargs
+        assert call.kwargs["publishedAfter"].endswith("Z")
+    # последний запрос — по дате, остальные — по релевантности
+    assert calls[0].kwargs["order"] == "relevance"
+    assert calls[1].kwargs["order"] == "date"
+
+
 def test_search_videos_empty_response():
     with patch("backend.services.youtube._client", return_value=_mock_yt([[]])):
         results = search_videos(["query"])

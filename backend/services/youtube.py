@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta, timezone
 
 from googleapiclient.discovery import build
 
@@ -47,11 +48,17 @@ def _enrich(videos: list[dict]) -> None:
         video["views"] = int(item.get("statistics", {}).get("viewCount", 0))
 
 
-def search_videos(queries: list[str], max_per_query: int = 5) -> list[dict]:
+def search_videos(
+    queries: list[str], max_per_query: int = 5, freshness_days: int = 30
+) -> list[dict]:
     seen: set[str] = set()
     results: list[dict] = []
 
-    for query in queries:
+    published_after = (
+        datetime.now(timezone.utc) - timedelta(days=freshness_days)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    for i, query in enumerate(queries):
         response = (
             _client()
             .search()
@@ -61,6 +68,9 @@ def search_videos(queries: list[str], max_per_query: int = 5) -> list[dict]:
                 type="video",
                 maxResults=max_per_query,
                 relevanceLanguage="en",
+                publishedAfter=published_after,
+                # последний запрос — по дате: смесь релевантного и самого нового
+                order="date" if i == len(queries) - 1 else "relevance",
             )
             .execute()
         )
