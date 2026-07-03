@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PersonaFeed — интернет глазами другого человека</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>PersonaFeed</h1>
+    <p class="tagline">Посмотри на интернет глазами другого человека</p>
+  </header>
+
+  <main>
+    <!-- Picker -->
+    <section id="picker">
+      <div id="persona-grid"></div>
+      <div class="custom-persona">
+        <input id="custom-input" type="text" placeholder="или введи своего: «пожарный», «шеф-повар»..." />
+        <button id="custom-btn">Показать ленту</button>
+      </div>
+    </section>
+
+    <!-- Loading -->
+    <section id="loading" class="hidden">
+      <div class="spinner"></div>
+      <p class="loading-text">Собираем ленту персонажа<span class="dots"></span></p>
+      <p class="loading-hint">Первый запрос занимает до минуты</p>
+    </section>
+
+    <!-- Feed -->
+    <section id="feed" class="hidden">
+      <div id="feed-header">
+        <button id="back-btn">← Выбрать другого</button>
+        <div id="persona-info">
+          <h2 id="feed-name"></h2>
+          <p id="feed-context"></p>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="youtube">▶ YouTube</button>
+        <button class="tab" data-tab="news">📰 Новости</button>
+        <button class="tab" data-tab="searches">🔍 Поиск</button>
+      </div>
+
+      <div id="tab-youtube" class="tab-content">
+        <div id="youtube-cards" class="cards"></div>
+      </div>
+      <div id="tab-news" class="tab-content hidden">
+        <div id="news-cards" class="cards"></div>
+      </div>
+      <div id="tab-searches" class="tab-content hidden">
+        <ul id="searches-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
