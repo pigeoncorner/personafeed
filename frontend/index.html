@@ -7,55 +7,75 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>PersonaFeed</h1>
-    <p class="tagline">Посмотри на интернет глазами другого человека</p>
+  <!-- Topbar -->
+  <header id="topbar">
+    <div class="topbar-left">
+      <span class="logo-icon">▶</span>
+      <span class="logo-text">PersonaFeed</span>
+    </div>
+    <div class="topbar-center">
+      <div class="search-box">
+        <input id="custom-input" type="text" placeholder="Чьими глазами смотреть? Например: пожарный, шеф-повар..." />
+        <button id="custom-btn" title="Показать ленту">🔍</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div id="persona-avatar" class="avatar hidden" title=""></div>
+    </div>
   </header>
 
+  <!-- Chips -->
+  <nav id="chips-row"></nav>
+
+  <!-- Persona banner -->
+  <div id="persona-banner" class="hidden">
+    <span id="banner-text"></span>
+  </div>
+
   <main>
-    <!-- Picker -->
-    <section id="picker">
-      <div id="persona-grid"></div>
-      <div class="custom-persona">
-        <input id="custom-input" type="text" placeholder="или введи своего: «пожарный», «шеф-повар»..." />
-        <button id="custom-btn">Показать ленту</button>
-      </div>
+    <!-- Empty state -->
+    <section id="empty-state">
+      <h2>Посмотри на YouTube чужими глазами</h2>
+      <p>Выбери персонажа сверху — и увидишь его ленту</p>
     </section>
 
-    <!-- Loading -->
+    <!-- Skeleton loading -->
     <section id="loading" class="hidden">
-      <div class="spinner"></div>
-      <p class="loading-text">Собираем ленту персонажа<span class="dots"></span></p>
-      <p class="loading-hint">Первый запрос занимает до минуты</p>
+      <div class="loading-note">Собираем ленту персонажа — первый запрос занимает до минуты…</div>
+      <div id="skeleton-grid" class="video-grid"></div>
     </section>
 
     <!-- Feed -->
     <section id="feed" class="hidden">
-      <div id="feed-header">
-        <button id="back-btn">← Выбрать другого</button>
-        <div id="persona-info">
-          <h2 id="feed-name"></h2>
-          <p id="feed-context"></p>
-        </div>
+      <div id="searches-block" class="hidden">
+        <span class="searches-label">Персона искала:</span>
+        <span id="searches-chips"></span>
       </div>
-
-      <div class="tabs">
-        <button class="tab active" data-tab="youtube">▶ YouTube</button>
-        <button class="tab" data-tab="news">📰 Новости</button>
-        <button class="tab" data-tab="searches">🔍 Поиск</button>
-      </div>
-
-      <div id="tab-youtube" class="tab-content">
-        <div id="youtube-cards" class="cards"></div>
-      </div>
-      <div id="tab-news" class="tab-content hidden">
-        <div id="news-cards" class="cards"></div>
-      </div>
-      <div id="tab-searches" class="tab-content hidden">
-        <ul id="searches-list"></ul>
+      <div id="video-grid" class="video-grid"></div>
+      <div id="news-shelf" class="hidden">
+        <h3 id="news-title">Новости</h3>
+        <div id="news-row"></div>
       </div>
     </section>
   </main>
+
+  <!-- Player modal -->
+  <div id="player-modal" class="hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <button id="modal-close" title="Закрыть">✕</button>
+      <div class="player-wrap">
+        <iframe id="player-iframe" src="" title="YouTube player" frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen></iframe>
+      </div>
+      <div class="modal-info">
+        <div id="modal-title"></div>
+        <div id="modal-channel"></div>
+        <div id="modal-why" class="hidden"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
