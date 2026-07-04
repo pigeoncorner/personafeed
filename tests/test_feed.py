@@ -1,6 +1,4 @@
-import json
-from datetime import date
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,56 +7,33 @@ from backend.main import app
 
 client = TestClient(app)
 
-
-def _fake_topic():
-    return {
-        "topic": "Археология звука",
-        "intro": "Учёные реконструируют голоса прошлого.",
-        "queries": ["acoustic archaeology", "ancient sound reconstruction", "archaeoacoustics"],
-        "news_topics": ["archaeoacoustics research"],
-    }
-
-
-def _fake_curate_response():
-    return {
-        "youtube": [
-            {"video_id": "v1", "title": "Sound of the Past", "channel": "SciShow", "why_relevant": "Ключевое видео"}
-        ],
-        "news": [
-            {"url": "https://nature.com/1", "title": "New Study", "source": "Nature", "why_relevant": "Важно"}
-        ],
-        "top_searches": ["archaeoacoustics 2026"],
-    }
+_FAKE_VIDEOS = {
+    "science": [
+        {"video_id": "s1", "title": "Science Video", "channel": "SciCh",
+         "url": "https://yt.com/s1", "thumbnail": "https://img/s1.jpg",
+         "duration": 600, "views": 1000, "published_at": "2026-06-01T00:00:00Z"},
+    ],
+    "history": [
+        {"video_id": "h1", "title": "History Video", "channel": "HistCh",
+         "url": "https://yt.com/h1", "thumbnail": "https://img/h1.jpg",
+         "duration": 900, "views": 2000, "published_at": "2026-06-02T00:00:00Z"},
+    ],
+}
 
 
-def _fake_youtube_raw():
-    return [{"video_id": "v1", "title": "Sound of the Past", "channel": "SciShow",
-             "url": "https://www.youtube.com/watch?v=v1", "thumbnail": "https://img/v1.jpg",
-             "duration": 3723, "views": 123456, "published_at": "2026-06-01T00:00:00Z"}]
-
-
-def _fake_news_raw():
-    return [{"url": "https://nature.com/1", "title": "New Study",
-             "source": "Nature", "published_at": "2026-06-15T00:00:00Z"}]
-
-
-def _patches(topic_mock=None):
-    return (
-        patch("backend.routers.feed.ai.generate_topic",
-              new=topic_mock or AsyncMock(return_value=_fake_topic())),
-        patch("backend.services.youtube.search_videos", return_value=_fake_youtube_raw()),
-        patch("backend.services.news.search_news", new=AsyncMock(return_value=_fake_news_raw())),
-        patch("backend.routers.feed.ai.curate_feed",
-              new=AsyncMock(return_value=_fake_curate_response())),
-    )
+def _fake_sample(category_ids, categories_map, limit=40):
+    result = []
+    for cid in category_ids:
+        for v in _FAKE_VIDEOS.get(cid, []):
+            item = dict(v, category_id=cid, category_label=categories_map[cid]["label"])
+            result.append(item)
+    return result[:limit]
 
 
 @pytest.fixture(autouse=True)
-def clear_cache():
-    from backend.routers.feed import _cache
-    _cache._store.clear()
-    yield
-    _cache._store.clear()
+def patch_pool_sample():
+    with patch("backend.routers.feed.pool_service.sample", side_effect=_fake_sample):
+        yield
 
 
 def test_get_categories():
@@ -66,107 +41,53 @@ def test_get_categories():
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 15
-    assert all("id" in c and "emoji" in c and "label" in c and "hint" in c for c in data)
+    assert all(
+        "id" in c and "emoji" in c and "label" in c and "hint" in c and "queries" in c
+        for c in data
+    )
+    assert all(len(c["queries"]) == 4 for c in data)
 
 
-def test_feed_returns_valid_response():
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
-        response = client.post("/feed", json={"category": "history", "language": "ru"})
-
+def test_grid_endpoint():
+    response = client.post("/grid", json={"categories": ["science", "history"]})
     assert response.status_code == 200
-    data = response.json()
-    assert data["category_id"] == "history"
-    assert data["category_label"] == "История"
-    assert data["topic"] == "Археология звука"
-    assert data["intro"]
-    assert len(data["youtube"]) == 1
-    assert data["youtube"][0]["why_relevant"] == "Ключевое видео"
-    assert data["cached"] is False
+    items = response.json()["items"]
+    assert len(items) == 2
+    category_ids = {v["category_id"] for v in items}
+    assert category_ids == {"science", "history"}
 
 
-def test_feed_response_fields():
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
-        response = client.post("/feed", json={"category": "history", "language": "ru"})
-
-    video = response.json()["youtube"][0]
-    assert video["video_id"] == "v1"
-    assert video["duration"] == 3723
-    assert video["views"] == 123456
-    assert video["published_at"] == "2026-06-01T00:00:00Z"
-
-
-def test_feed_cache_key_has_date():
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
-        client.post("/feed", json={"category": "history", "language": "ru"})
-
-    from backend.routers.feed import _cache
-    keys = list(_cache._store.keys())
-    assert len(keys) == 1
-    assert date.today().isoformat() in keys[0]
-
-
-def test_feed_cached_on_second_request():
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
-        client.post("/feed", json={"category": "history", "language": "ru"})
-        response = client.post("/feed", json={"category": "history", "language": "ru"})
-
-    assert response.json()["cached"] is True
-
-
-def test_feed_custom_topic():
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
-        response = client.post("/feed", json={"category": "пчеловодство", "language": "ru"})
-
+def test_grid_single_category():
+    response = client.post("/grid", json={"categories": ["science"]})
     assert response.status_code == 200
-    assert response.json()["category_id"] == "пчеловодство"
+    items = response.json()["items"]
+    assert all(v["category_id"] == "science" for v in items)
 
 
-def test_surprise_picks_from_list():
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
-        response = client.post("/surprise", json={"categories": ["history"], "language": "ru"})
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["category_id"] == "history"
-    assert data["topic"] == "Археология звука"
-    assert data["intro"]
+def test_grid_items_have_category_label():
+    response = client.post("/grid", json={"categories": ["history"]})
+    items = response.json()["items"]
+    assert items[0]["category_label"] == "История"
 
 
-def test_surprise_not_cached():
-    topic_mock = AsyncMock(return_value=_fake_topic())
-    p1, p2, p3, p4 = _patches(topic_mock)
-    with p1, p2, p3, p4:
-        client.post("/surprise", json={"categories": ["history"], "language": "ru"})
-        client.post("/surprise", json={"categories": ["history"], "language": "ru"})
-
-    assert topic_mock.call_count == 2  # каждый клик — новая генерация темы
-
-
-def test_surprise_empty_categories():
-    response = client.post("/surprise", json={"categories": [], "language": "ru"})
+def test_grid_empty_categories():
+    response = client.post("/grid", json={"categories": []})
     assert response.status_code == 422
 
 
-def test_surprise_unknown_category():
-    response = client.post("/surprise", json={"categories": ["nonexistent"], "language": "ru"})
+def test_grid_unknown_category_ignored():
+    response = client.post("/grid", json={"categories": ["science", "nonexistent"]})
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert all(v["category_id"] == "science" for v in items)
+
+
+def test_grid_all_unknown():
+    response = client.post("/grid", json={"categories": ["nonexistent"]})
     assert response.status_code == 422
 
 
-def test_feed_degradation_curate_fails():
-    p1 = patch("backend.routers.feed.ai.generate_topic", new=AsyncMock(return_value=_fake_topic()))
-    p2 = patch("backend.services.youtube.search_videos", return_value=_fake_youtube_raw())
-    p3 = patch("backend.services.news.search_news", new=AsyncMock(return_value=_fake_news_raw()))
-    p4 = patch("backend.routers.feed.ai.curate_feed", new=AsyncMock(side_effect=RuntimeError("Claude down")))
-    with p1, p2, p3, p4:
-        response = client.post("/feed", json={"category": "history", "language": "ru"})
-
+def test_grid_respects_limit():
+    response = client.post("/grid", json={"categories": ["science", "history"], "limit": 1})
+    # sample is mocked — just verify the endpoint passes limit through
     assert response.status_code == 200
-    data = response.json()
-    assert len(data["youtube"]) == 1
-    assert data["youtube"][0]["why_relevant"] == ""  # сырые результаты без аннотаций

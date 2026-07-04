@@ -1,14 +1,9 @@
 from pydantic import BaseModel
 
 
-class FeedRequest(BaseModel):
-    category: str
-    language: str = "ru"
-
-
-class SurpriseRequest(BaseModel):
+class GridRequest(BaseModel):
     categories: list[str]
-    language: str = "ru"
+    limit: int = 40
 
 
 class VideoItem(BaseModel):
@@ -21,22 +16,9 @@ class VideoItem(BaseModel):
     views: int = 0
     published_at: str = ""
     why_relevant: str = ""
+    category_id: str = ""
+    category_label: str = ""
 
 
-class NewsItem(BaseModel):
-    title: str
-    source: str
-    url: str
-    published_at: str
-    why_relevant: str = ""
-
-
-class FeedResponse(BaseModel):
-    category_id: str
-    category_label: str
-    topic: str
-    intro: str
-    youtube: list[VideoItem]
-    news: list[NewsItem]
-    searches: list[str]
-    cached: bool
+class GridResponse(BaseModel):
+    items: list[VideoItem]

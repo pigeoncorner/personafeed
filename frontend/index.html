@@ -13,24 +13,13 @@
       <span class="logo-icon">▶</span>
       <span class="logo-text">PersonaFeed</span>
     </div>
-    <div class="topbar-center">
-      <div class="search-box">
-        <input id="custom-input" type="text" placeholder="Своя тема: «пчеловодство», «стеклодувы»…" />
-        <button id="custom-btn" title="Показать ленту">🔍</button>
-      </div>
-    </div>
     <div class="topbar-right">
-      <button id="surprise-btn" class="hidden" title="Случайная тема из твоих категорий">🎲 Удиви меня</button>
+      <button id="surprise-btn" class="hidden" title="Перетасовать ленту">🎲 Удиви меня</button>
     </div>
   </header>
 
   <!-- Chips -->
   <nav id="chips-row" class="hidden"></nav>
-
-  <!-- Topic banner -->
-  <div id="topic-banner" class="hidden">
-    <span id="banner-text"></span>
-  </div>
 
   <main>
     <!-- Onboarding: category selection -->
@@ -41,29 +30,14 @@
       <button id="onboarding-continue" disabled>Продолжить</button>
     </section>
 
-    <!-- Empty state -->
-    <section id="empty-state" class="hidden">
-      <h2>Готово!</h2>
-      <p>Жми «🎲 Удиви меня» или выбери категорию сверху</p>
-    </section>
-
     <!-- Skeleton loading -->
     <section id="loading" class="hidden">
-      <div class="loading-note" id="loading-note">Придумываем неожиданную тему…</div>
       <div id="skeleton-grid" class="video-grid"></div>
     </section>
 
     <!-- Feed -->
     <section id="feed" class="hidden">
-      <div id="searches-block" class="hidden">
-        <span class="searches-label">Что искали:</span>
-        <span id="searches-chips"></span>
-      </div>
       <div id="video-grid" class="video-grid"></div>
-      <div id="news-shelf" class="hidden">
-        <h3 id="news-title">Новости</h3>
-        <div id="news-row"></div>
-      </div>
     </section>
   </main>
 

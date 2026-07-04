@@ -2,8 +2,8 @@ const $ = (id) => document.getElementById(id);
 
 const STORAGE_KEY = "pf_categories";
 
-let allCategories = [];   // из GET /categories
-let selectedIds = [];     // выбранные пользователем
+let allCategories = [];
+let selectedIds = [];
 
 /* ---------- Formatting ---------- */
 
@@ -90,7 +90,7 @@ function finishOnboarding() {
   renderChips();
   $("chips-row").classList.remove("hidden");
   $("surprise-btn").classList.remove("hidden");
-  showState("empty-state");
+  loadGrid(selectedIds);
 }
 
 /* ---------- Chips ---------- */
@@ -98,6 +98,15 @@ function finishOnboarding() {
 function renderChips() {
   const row = $("chips-row");
   row.innerHTML = "";
+
+  // "All" chip
+  const allChip = document.createElement("button");
+  allChip.className = "chip";
+  allChip.dataset.category = "__all__";
+  allChip.textContent = "Все";
+  allChip.addEventListener("click", () => loadGrid(selectedIds));
+  row.appendChild(allChip);
+
   selectedIds.forEach((id) => {
     const cat = allCategories.find((c) => c.id === id);
     if (!cat) return;
@@ -105,16 +114,16 @@ function renderChips() {
     chip.className = "chip";
     chip.dataset.category = id;
     chip.textContent = `${cat.emoji} ${cat.label}`;
-    chip.addEventListener("click", () => loadFeed(id));
+    chip.addEventListener("click", () => loadGrid([id]));
     row.appendChild(chip);
   });
+
   const settings = document.createElement("button");
   settings.className = "chip";
   settings.title = "Изменить категории";
   settings.textContent = "⚙";
   settings.addEventListener("click", () => {
     renderOnboarding();
-    $("topic-banner").classList.add("hidden");
     showState("onboarding");
   });
   row.appendChild(settings);
@@ -131,7 +140,7 @@ function setActiveChip(categoryId) {
 function renderSkeletons() {
   const grid = $("skeleton-grid");
   grid.innerHTML = "";
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 12; i++) {
     const card = document.createElement("div");
     card.className = "video-card skeleton";
     card.innerHTML = `
@@ -154,8 +163,10 @@ function renderVideoCard(item) {
   const duration = item.duration ? `<span class="duration-badge">${formatDuration(item.duration)}</span>` : "";
   const thumb = item.thumbnail ? `<img src="${escHtml(item.thumbnail)}" alt="" loading="lazy" />` : "";
   const meta = [formatViews(item.views), formatTimeAgo(item.published_at)].filter(Boolean).join(" · ");
-  const why = item.why_relevant ? `<div class="why-line">${escHtml(item.why_relevant)}</div>` : "";
   const initial = escHtml((item.channel || "?").charAt(0).toUpperCase());
+  const catBadge = item.category_label
+    ? `<span class="cat-badge">${escHtml(item.category_label)}</span>`
+    : "";
 
   card.innerHTML = `
     <div class="thumb-wrap">${thumb}${duration}</div>
@@ -164,29 +175,12 @@ function renderVideoCard(item) {
       <div>
         <div class="video-title">${escHtml(item.title)}</div>
         <div class="video-sub">${escHtml(item.channel)}${meta ? "<br>" + meta : ""}</div>
-        ${why}
+        ${catBadge}
       </div>
     </div>`;
 
   card.addEventListener("click", () => openPlayer(item));
   return card;
-}
-
-function renderNewsCard(item) {
-  const a = document.createElement("a");
-  a.className = "news-card";
-  a.href = item.url;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-
-  const date = item.published_at ? new Date(item.published_at).toLocaleDateString("ru-RU") : "";
-  const why = item.why_relevant ? `<div class="why-line">${escHtml(item.why_relevant)}</div>` : "";
-
-  a.innerHTML = `
-    <div class="card-title">${escHtml(item.title)}</div>
-    <div class="card-sub">${escHtml(item.source)}${date ? " · " + date : ""}</div>
-    ${why}`;
-  return a;
 }
 
 /* ---------- Player modal ---------- */
@@ -200,12 +194,7 @@ function openPlayer(item) {
   $("modal-title").textContent = item.title;
   $("modal-channel").textContent = item.channel;
   const why = $("modal-why");
-  if (item.why_relevant) {
-    why.textContent = `💬 ${item.why_relevant}`;
-    why.classList.remove("hidden");
-  } else {
-    why.classList.add("hidden");
-  }
+  why.classList.add("hidden");
   $("player-modal").classList.remove("hidden");
   document.body.style.overflow = "hidden";
 }
@@ -216,24 +205,25 @@ function closePlayer() {
   document.body.style.overflow = "";
 }
 
-/* ---------- Feed loading ---------- */
+/* ---------- Grid loading ---------- */
 
 function showState(state) {
-  ["onboarding", "empty-state", "loading", "feed"].forEach((id) => $(id).classList.add("hidden"));
+  ["onboarding", "loading", "feed"].forEach((id) => $(id).classList.add("hidden"));
   $(state).classList.remove("hidden");
 }
 
-async function fetchFeed(url, body) {
+async function loadGrid(categoryIds, activeChip) {
+  const chipKey = categoryIds.length === 1 ? categoryIds[0] : "__all__";
+  setActiveChip(activeChip || chipKey);
   renderSkeletons();
   showState("loading");
-  $("topic-banner").classList.add("hidden");
 
   let data;
   try {
-    const res = await fetch(url, {
+    const res = await fetch("/grid", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ categories: categoryIds, limit: 40 }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -241,55 +231,15 @@ async function fetchFeed(url, body) {
     }
     data = await res.json();
   } catch (e) {
-    showState("empty-state");
-    setActiveChip(null);
-    alert(`Не удалось загрузить ленту: ${e.message}`);
+    showState("feed");
+    $("video-grid").innerHTML = `<p class="error-msg">Не удалось загрузить ленту: ${escHtml(e.message)}</p>`;
     return;
   }
 
-  renderFeed(data, url === "/surprise");
-}
-
-function renderFeed(data, isSurprise) {
-  const cat = allCategories.find((c) => c.id === data.category_id);
-  const emoji = isSurprise ? "🎲" : (cat ? cat.emoji : "🔍");
-  $("banner-text").textContent =
-    `${emoji} ${data.category_label} → ${data.topic}. ${data.intro}`;
-  $("topic-banner").classList.remove("hidden");
-
   const grid = $("video-grid");
   grid.innerHTML = "";
-  (data.youtube || []).forEach((v) => grid.appendChild(renderVideoCard(v)));
-
-  const searches = data.searches || [];
-  const chips = $("searches-chips");
-  chips.innerHTML = "";
-  searches.forEach((q) => {
-    const span = document.createElement("span");
-    span.className = "search-chip";
-    span.textContent = q;
-    chips.appendChild(span);
-  });
-  $("searches-block").classList.toggle("hidden", searches.length === 0);
-
-  const news = data.news || [];
-  const row = $("news-row");
-  row.innerHTML = "";
-  news.forEach((n) => row.appendChild(renderNewsCard(n)));
-  $("news-title").textContent = `Новости по теме «${data.topic}»`;
-  $("news-shelf").classList.toggle("hidden", news.length === 0);
-
+  (data.items || []).forEach((v) => grid.appendChild(renderVideoCard(v)));
   showState("feed");
-}
-
-function loadFeed(category) {
-  setActiveChip(category);
-  fetchFeed("/feed", { category, language: "ru" });
-}
-
-function loadSurprise() {
-  setActiveChip(null);
-  fetchFeed("/surprise", { categories: selectedIds, language: "ru" });
 }
 
 /* ---------- Init ---------- */
@@ -314,26 +264,14 @@ async function init() {
     renderChips();
     $("chips-row").classList.remove("hidden");
     $("surprise-btn").classList.remove("hidden");
-    showState("empty-state");
+    loadGrid(selectedIds);
   }
 }
 
 /* ---------- Events ---------- */
 
 $("onboarding-continue").addEventListener("click", finishOnboarding);
-$("surprise-btn").addEventListener("click", loadSurprise);
-
-$("custom-btn").addEventListener("click", () => {
-  const val = $("custom-input").value.trim();
-  if (val) { setActiveChip(null); fetchFeed("/feed", { category: val, language: "ru" }); }
-});
-
-$("custom-input").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    const val = $("custom-input").value.trim();
-    if (val) { setActiveChip(null); fetchFeed("/feed", { category: val, language: "ru" }); }
-  }
-});
+$("surprise-btn").addEventListener("click", () => loadGrid(selectedIds));
 
 $("modal-close").addEventListener("click", closePlayer);
 document.querySelector(".modal-backdrop").addEventListener("click", closePlayer);
