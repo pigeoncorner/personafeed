@@ -103,12 +103,15 @@ def get_pool(cat: dict, source: str) -> list[dict]:
 
 
 def refresh_stale(categories: list[dict]) -> None:
-    """Refresh all stale pools for both sources. Intended for background calls."""
+    """Refresh stale pools. YouTube pools are pre-fetched proactively; ru pools only
+    if they already exist (created on-demand when a user first requests that source)."""
     for cat in categories:
         for source in ("youtube", "ru"):
             pool_key = f"{cat['id']}:{source}"
             with _lock:
                 pool = _pools.get(pool_key)
+                if source == "ru" and pool is None:
+                    continue  # lazy: create on first user request, not in background
                 stale = pool is None or _is_stale(pool)
             if stale:
                 try:
