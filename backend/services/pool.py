@@ -30,8 +30,9 @@ def load_from_disk() -> None:
         return
     try:
         data = json.loads(_POOLS_FILE.read_text(encoding="utf-8"))
+        valid = {k: v for k, v in data.items() if ":" in k}
         with _lock:
-            _pools.update(data)
+            _pools.update(valid)
         logger.info("Loaded pools for %d keys from disk", len(data))
     except Exception as exc:
         logger.warning("Failed to load pools from disk: %s", exc)
