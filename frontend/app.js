@@ -1,9 +1,11 @@
 const $ = (id) => document.getElementById(id);
 
 const STORAGE_KEY = "pf_categories";
+const SOURCE_KEY = "pf_source";
 
 let allCategories = [];
 let selectedIds = [];
+let currentSource = localStorage.getItem(SOURCE_KEY) || "youtube";
 
 /* ---------- Formatting ---------- */
 
@@ -60,6 +62,20 @@ function escHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+/* ---------- Source toggle ---------- */
+
+function updateSourceToggle() {
+  $("src-youtube").classList.toggle("active", currentSource === "youtube");
+  $("src-ru").classList.toggle("active", currentSource === "ru");
+}
+
+function setSource(src) {
+  currentSource = src;
+  localStorage.setItem(SOURCE_KEY, src);
+  updateSourceToggle();
+  loadGrid(selectedIds);
+}
+
 /* ---------- Onboarding ---------- */
 
 function renderOnboarding() {
@@ -90,6 +106,8 @@ function finishOnboarding() {
   renderChips();
   $("chips-row").classList.remove("hidden");
   $("surprise-btn").classList.remove("hidden");
+  $("source-toggle").classList.remove("hidden");
+  updateSourceToggle();
   loadGrid(selectedIds);
 }
 
@@ -99,7 +117,6 @@ function renderChips() {
   const row = $("chips-row");
   row.innerHTML = "";
 
-  // "All" chip
   const allChip = document.createElement("button");
   allChip.className = "chip";
   allChip.dataset.category = "__all__";
@@ -156,6 +173,8 @@ function renderSkeletons() {
   }
 }
 
+const SOURCE_LABELS = { youtube: "YouTube", vk: "VK", rutube: "RuTube" };
+
 function renderVideoCard(item) {
   const card = document.createElement("div");
   card.className = "video-card";
@@ -167,6 +186,10 @@ function renderVideoCard(item) {
   const catBadge = item.category_label
     ? `<span class="cat-badge">${escHtml(item.category_label)}</span>`
     : "";
+  const srcLabel = SOURCE_LABELS[item.source] || item.source;
+  const srcBadge = srcLabel
+    ? `<span class="source-badge src-${escHtml(item.source || "")}">${escHtml(srcLabel)}</span>`
+    : "";
 
   card.innerHTML = `
     <div class="thumb-wrap">${thumb}${duration}</div>
@@ -175,7 +198,7 @@ function renderVideoCard(item) {
       <div>
         <div class="video-title">${escHtml(item.title)}</div>
         <div class="video-sub">${escHtml(item.channel)}${meta ? "<br>" + meta : ""}</div>
-        ${catBadge}
+        <div class="card-badges">${catBadge}${srcBadge}</div>
       </div>
     </div>`;
 
@@ -186,15 +209,21 @@ function renderVideoCard(item) {
 /* ---------- Player modal ---------- */
 
 function openPlayer(item) {
-  if (!item.video_id) {
+  let iframeSrc;
+  if (item.embed_url) {
+    // RuTube / VK embed
+    iframeSrc = item.embed_url;
+  } else if (item.video_id) {
+    // YouTube embed
+    iframeSrc = `https://www.youtube.com/embed/${encodeURIComponent(item.video_id)}?autoplay=1`;
+  } else {
     window.open(item.url, "_blank", "noopener");
     return;
   }
-  $("player-iframe").src = `https://www.youtube.com/embed/${encodeURIComponent(item.video_id)}?autoplay=1`;
+
+  $("player-iframe").src = iframeSrc;
   $("modal-title").textContent = item.title;
   $("modal-channel").textContent = item.channel;
-  const why = $("modal-why");
-  why.classList.add("hidden");
   $("player-modal").classList.remove("hidden");
   document.body.style.overflow = "hidden";
 }
@@ -212,9 +241,9 @@ function showState(state) {
   $(state).classList.remove("hidden");
 }
 
-async function loadGrid(categoryIds, activeChip) {
+async function loadGrid(categoryIds) {
   const chipKey = categoryIds.length === 1 ? categoryIds[0] : "__all__";
-  setActiveChip(activeChip || chipKey);
+  setActiveChip(chipKey);
   renderSkeletons();
   showState("loading");
 
@@ -223,7 +252,7 @@ async function loadGrid(categoryIds, activeChip) {
     const res = await fetch("/grid", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categories: categoryIds, limit: 40 }),
+      body: JSON.stringify({ categories: categoryIds, limit: 40, source: currentSource }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -264,6 +293,8 @@ async function init() {
     renderChips();
     $("chips-row").classList.remove("hidden");
     $("surprise-btn").classList.remove("hidden");
+    $("source-toggle").classList.remove("hidden");
+    updateSourceToggle();
     loadGrid(selectedIds);
   }
 }
@@ -272,6 +303,8 @@ async function init() {
 
 $("onboarding-continue").addEventListener("click", finishOnboarding);
 $("surprise-btn").addEventListener("click", () => loadGrid(selectedIds));
+$("src-youtube").addEventListener("click", () => setSource("youtube"));
+$("src-ru").addEventListener("click", () => setSource("ru"));
 
 $("modal-close").addEventListener("click", closePlayer);
 document.querySelector(".modal-backdrop").addEventListener("click", closePlayer);

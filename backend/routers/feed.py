@@ -10,6 +10,8 @@ from backend.services import pool as pool_service
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+_VALID_SOURCES = {"youtube", "ru"}
+
 
 @router.get("/categories")
 async def get_categories():
@@ -21,6 +23,12 @@ async def get_grid(req: GridRequest):
     if not req.categories:
         raise HTTPException(status_code=422, detail="Нужна хотя бы одна категория")
 
+    if req.source not in _VALID_SOURCES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Неизвестный источник '{req.source}'. Допустимые: {sorted(_VALID_SOURCES)}"
+        )
+
     valid_ids = [c for c in req.categories if c in CATEGORIES]
     unknown = [c for c in req.categories if c not in CATEGORIES]
     if unknown:
@@ -29,7 +37,7 @@ async def get_grid(req: GridRequest):
         raise HTTPException(status_code=422, detail="Нет известных категорий")
 
     raw = await asyncio.to_thread(
-        pool_service.sample, valid_ids, CATEGORIES, req.limit
+        pool_service.sample, valid_ids, CATEGORIES, req.limit, req.source
     )
 
     items = [
@@ -45,6 +53,8 @@ async def get_grid(req: GridRequest):
             why_relevant=v.get("why_relevant", ""),
             category_id=v.get("category_id", ""),
             category_label=v.get("category_label", ""),
+            source=v.get("source", req.source),
+            embed_url=v.get("embed_url", ""),
         )
         for v in raw
     ]

@@ -1,11 +1,13 @@
 import re
 from datetime import datetime, timedelta, timezone
 
+import httplib2
 from googleapiclient.discovery import build
 
 from backend.config import settings
 
 _yt = None
+_HTTP_TIMEOUT = 15  # секунд до таймаута на каждый запрос к YouTube API
 
 _DURATION_RE = re.compile(
     r"PT(?:(?P<h>\d+)H)?(?:(?P<m>\d+)M)?(?:(?P<s>\d+)S)?"
@@ -15,7 +17,8 @@ _DURATION_RE = re.compile(
 def _client():
     global _yt
     if _yt is None:
-        _yt = build("youtube", "v3", developerKey=settings.youtube_api_key)
+        http = httplib2.Http(timeout=_HTTP_TIMEOUT)
+        _yt = build("youtube", "v3", developerKey=settings.youtube_api_key, http=http)
     return _yt
 
 

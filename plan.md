@@ -1,52 +1,138 @@
-# План: мгновенная сетка видео из пулов по категориям
+# План v2: переключатель источников YouTube ↔ VK/RuTube
 
 ## Задача
 
-Сейчас: выбор категории → Claude генерит тему (10–30 с) → поиск YouTube → Claude курирует (ещё 10–30 с) → выдача по одной теме. Медленно, узкая выдача.
+Источники **не смешиваются**. В топбаре — переключатель:
+положение 1 — YouTube, положение 2 — VK/RuTube. Переключатель меняет источник пула.
 
-Нужно: после выбора категорий сетка видео появляется за секунды, видео разных категорий идут вперемежку. Каждое обновление — новая выборка.
+Второй источник: RuTube (открытый API без авторизации, работает сразу) + VK опционально
+при наличии `VK_ACCESS_TOKEN` в `.env`.
 
-Решение — «обученный профиль» моделируем **пулом видео на категорию**:
-- у каждой категории есть курируемый набор из 4 английских поисковых запросов (аналог «тренировки на 10 видео»; генерится Claude офлайн один раз, правится руками в коде);
-- фоновая задача наполняет пул (~40 видео на категорию) через существующий `youtube.search_videos`, TTL 24 ч, персист на диск — рестарт сервера не жжёт квоту;
-- запрос пользователя — только сэмплирование из готовых пулов + interleave: ответ за миллисекунды;
-- Claude полностью уходит из горячего пути (`ai.py` в рантайме не вызывается).
+**Состояние кода на старте:**
+- `config.py`: `vk_access_token: str = ""` — уже добавлено.
+- `categories.py`: TypedDict содержит `queries_vk: list[str]`, но поле не заполнено ни в одной категории.
+- 36 тестов зелёные. `vkvideo.py`, `rutube.py` — не существуют.
 
-Квота YouTube API: 19 категорий × 4 запроса × 100 юнитов = 7600/день при полном суточном обновлении — в лимит 10 000 влезает.
+## Ключевые решения дизайна
 
-Осознанное сокращение scope (MVP): новостная полка и баннер темы завязаны на «тему» от Claude — их в новой сетке нет, полка скрывается. Вернём отдельной итерацией, если понадобится.
+- `POST /grid {categories, limit, source}`, source ∈ `"youtube" | "ru"`, default `"youtube"`.
+- Ключ пула: `f"{category_id}:{source}"` — источники раздельны. Старый `data/pools.json` удалить.
+- `queries_vk` → переименовать в `queries_ru` (общее для VK и RuTube).
+- Плеер: есть `embed_url` → iframe с ним; нет → YouTube-embed из `video_id`.
 
 ## Шаги реализации
 
-1. **`backend/categories.py`**: добавить каждой категории поле `queries: list[str]` — 4 конкретных английских YouTube-запроса (курируемые, генерятся при реализации).
-   → verify: у всех 19 категорий есть 4 запроса.
-2. **`backend/services/pool.py`** (новый): хранилище пулов.
-   - `get_pool(category_id)` — вернуть видео пула; если пула нет/протух — синхронный фетч (единственный медленный случай, ~3–5 с, один раз в сутки на категорию);
-   - персист в `data/pools.json` (`{category_id: {fetched_at, videos}}`), загрузка при старте;
-   - `sample(category_ids, limit)` — выборка из пулов выбранных категорий, round-robin interleave + shuffle, без дубликатов.
-   → verify: unit-тесты с замоканным `youtube.search_videos`.
-3. **Фоновый рефрешер** в `backend/main.py` (lifespan): при старте загрузить пулы с диска, дальше раз в час проверять и обновлять протухшие (TTL 24 ч).
-   → verify: тест логики «протух → фетч, свежий → нет».
-4. **`POST /grid`** в `backend/routers/feed.py` + схемы: запрос `{categories: [...], limit?: int}` → ответ `{items: [VideoItem + category_id/category_label]}`. Без кеша ответа — каждый вызов новая выборка.
-   → verify: тесты эндпоинта (моканные пулы).
-5. **Фронтенд** (`frontend/app.js`, `index.html`): после онбординга сразу `POST /grid` со всеми выбранными категориями; клик по чипу — грид одной категории; «Удиви меня» — новый `POST /grid` (свежая перетасовка). Баннер темы и новостная полка скрываются.
-   → verify: ручной прогон — сетка за <2 с, перемешанные категории.
-6. **Чистка**: удалить эндпоинты `/feed` и `/surprise` и их вызовы; `ai.py` и `services/news.py` остаются в репо, но из рантайма не вызываются.
-   → verify: `pytest` зелёный, в коде нет вызовов `ai.generate_topic` / `ai.curate_feed`.
-7. Коммит после каждого шага.
+Правила исполнителю:
+- Файлы с большим числом правок перезаписывать целиком одним Write, не серией Edit.
+- Коммит после каждого шага. `ai.py` и `news.py` не трогать.
+
+### 1. categories.py — queries_ru
+Перезаписать файл целиком. В TypedDict: заменить `queries_vk` → `queries_ru`.
+Каждой категории добавить `queries_ru`:
+
+- science: ["научпоп физика объяснение", "математика красивое доказательство", "астрономия открытия космос"]
+- history: ["история древних цивилизаций документальный", "археологические находки", "неизвестные страницы истории"]
+- art: ["история живописи разбор картины", "процесс художника таймлапс", "дизайн разбор"]
+- tech: ["как это устроено инженерия", "как делают на заводе производство", "разбор техники железо"]
+- software: ["программирование разбор архитектуры", "история создания программы", "веб-разработка практика"]
+- nature: ["дикая природа документальный", "удивительные животные", "экспедиция природа"]
+- philosophy: ["философия просто о сложном", "стоицизм практика жизни", "мысленный эксперимент философия"]
+- food: ["кухни мира уличная еда", "наука кулинарии техника", "рецепт от шефа разбор"]
+- games: ["разбор геймдизайна", "история видеоигр", "инди разработка игр"]
+- music: ["теория музыки объяснение", "история музыкального жанра", "как устроен звук саунд-дизайн"]
+- health: ["научный подход тренировки", "психология исследования", "как работает организм человека"]
+- business: ["история бизнеса разбор", "экономика простыми словами", "предприниматель история провала"]
+- culture: ["традиции народов мира документальный", "путешествие отдалённые места", "социология эксперименты"]
+- education: ["как учиться эффективно наука", "методики преподавания", "как работает память обучение"]
+- literature: ["разбор книги анализ", "писательское мастерство", "забытые писатели история литературы"]
+- movies: ["разбор фильма кинематография", "история кино", "как снимают кино закулисье"]
+- sports: ["спортивная наука биомеханика", "история спорта великие моменты", "тренировки профессиональных атлетов"]
+- home: ["ремонт своими руками до и после", "дизайн интерьера разбор", "сад огород советы"]
+- fun: ["странные эксперименты", "абсурдные факты истории", "смешные изобретения"]
+
+Verify: `python -c "from backend.categories import CATEGORIES; assert all(len(c['queries_ru'])==3 for c in CATEGORIES.values())"`.
+
+### 2. backend/services/rutube.py (новый)
+`search_videos(queries, max_per_query=10, freshness_days=30) -> list[dict]`
+
+- Эндпоинт: `GET https://rutube.ru/api/search/video/?query={q}&format=json`
+- HTTP через `urllib.request` с **timeout=15** (обязательно).
+- Перед маппингом сделать один живой тестовый запрос и проверить реальные поля JSON.
+  Ожидаемые: `results[]` → `id`, `title`, `thumbnail_url`, `duration` (сек), `hits` (просмотры),
+  `publication_ts` / `created_ts` (unix или ISO), `author.name`, `video_url`.
+- Маппинг: `video_id=str(id)`, `url=video_url`, `thumbnail=thumbnail_url`,
+  `embed_url=f"https://rutube.ru/play/embed/{id}"`, `source="rutube"`.
+- Фильтр свежести 30 дней по дате; если после фильтра пусто — без фильтра. Дедупликация.
+
+### 3. backend/services/vkvideo.py (новый)
+Тот же контракт. `GET https://api.vk.com/method/video.search`,
+параметры: `q`, `count=max_per_query*2`, `sort=2`, `adult=0`, `extended=1`, `v=5.199`,
+`access_token=settings.vk_access_token`. urllib с timeout=15.
+
+- Поле `error` в JSON → RuntimeError.
+- Маппинг: `video_id=f"{owner_id}_{id}"`, `url=https://vk.com/video{owner_id}_{id}`,
+  `thumbnail` — из `image[]` ближайший к width 320 (fallback первый),
+  `published_at` из `date` (unix → ISO UTC), `embed_url` из `player`, `source="vk"`.
+  `channel` — имя из `groups`/`profiles` по owner_id, fallback "".
+- Фильтр свежести 30 дней, fallback 180. Дедупликация.
+
+### 4. backend/services/pool.py — раздельные пулы
+- Ключ: `f"{category_id}:{source}"`.
+- `_fetch(cat, source)`:
+  - `"youtube"` → `youtube.search_videos(cat["queries"])`, добавить `source="youtube"` каждому.
+  - `"ru"` → `rutube.search_videos(cat["queries_ru"])` всегда; если `settings.vk_access_token` непустой →
+    `vkvideo.search_videos(cat["queries_ru"])` тоже. Каждый вызов в отдельном try/except.
+- `get_pool(cat, source)`, `sample(category_ids, categories_map, limit, source)`.
+- `refresh_stale(categories)` — оба источника.
+- Удалить `data/pools.json`.
+
+### 5. Схема и роутер
+- `schemas.py`: `GridRequest` + `source: str = "youtube"`; `VideoItem` + `source: str = "youtube"`,
+  `embed_url: str = ""`.
+- `routers/feed.py`: `source not in ("youtube", "ru")` → 422; передать `source` в `sample`;
+  прокинуть `source`, `embed_url` в VideoItem.
+
+### 6. Фронтенд
+- `index.html`: topbar-center — сегмент-переключатель, две кнопки `▶ YouTube` / `VK · RuTube`,
+  id `src-youtube`, `src-ru`, контейнер `id="source-toggle"`, по умолчанию `hidden`.
+- `app.js`: `currentSource = localStorage.getItem("pf_source") || "youtube"`;
+  клик → сохранить, подсветить, вызвать `loadGrid`; `loadGrid` шлёт `source: currentSource`;
+  `openPlayer`: если `item.embed_url` → `iframe.src = item.embed_url`, иначе YouTube-embed.
+  Бейдж источника на карточке.
+- `style.css`: `#source-toggle` по образцу `.chip`, `.source-badge` по образцу `.cat-badge`.
+
+### 7. .env.example
+`YOUTUBE_API_KEY=`, `NEWS_API_KEY=`, `VK_ACCESS_TOKEN=` (опционально, с комментарием).
 
 ## Unit-тесты
 
-- [ ] `test_sample_interleave` — выборка из нескольких пулов содержит видео всех категорий вперемежку, без дубликатов video_id
-- [ ] `test_sample_respects_limit` — суммарное число элементов ≤ limit
-- [ ] `test_pool_expired_refetch` — протухший пул (fetched_at старше TTL) вызывает `youtube.search_videos`
-- [ ] `test_pool_fresh_no_fetch` — свежий пул не дергает YouTube API
-- [ ] `test_pool_persistence` — пулы сохраняются в JSON и загружаются после «рестарта»
-- [ ] `test_grid_endpoint` — `/grid` возвращает элементы всех запрошенных категорий за один вызов
-- [ ] `test_grid_empty_categories` — пустой список категорий → 422
-- [ ] `test_grid_unknown_category` — неизвестная категория игнорируется, ответ не падает
+Новые: `tests/test_rutube.py`, `tests/test_vkvideo.py`.
+Обновить: `test_pool.py`, `test_feed.py` под новые сигнатуры (`sample` с `source`, ключи пулов).
+Все 36 существующих должны остаться зелёными.
+
+- [ ] rutube: маппинг полей (video_id, url, thumbnail, duration, views, embed_url, source="rutube")
+- [ ] rutube: дедупликация id
+- [ ] vk: маппинг полей, embed_url из player, video_id = owner_id_id
+- [ ] vk: `error` в ответе → RuntimeError
+- [ ] vk: фильтр свежести 30 дней / fallback 180
+- [ ] pool: ключи пулов содержат source, youtube и ru не пересекаются
+- [ ] pool: source="ru" без токена → только rutube вызван
+- [ ] pool: source="ru" с токеном → оба вызваны; падение vk не роняет rutube
+- [ ] grid: source="ru" отдаёт только ru-элементы
+- [ ] grid: неизвестный source → 422
+- [ ] grid: default source = "youtube"
+
+## Verification
+
+1. `python -m pytest` — всё зелёное.
+2. Удалить `data/pools.json`, запустить сервер.
+   `POST /grid {"categories":["science"],"source":"ru"}` → видео RuTube.
+3. Браузер: переключатель меняет сетку; RuTube-карточка открывается в iframe `rutube.ru/play/embed/…`;
+   выбор источника переживает F5.
+4. С VK-токеном: в ru-сетке появляются `source:"vk"`.
 
 ## Риски
 
-- Первый запрос к категории с пустым пулом медленный (~3–5 с на синхронный фетч) — дальше мгновенно благодаря персисту.
-- Квота близка к лимиту: если добавятся категории/запросы — перейти на сид-каналы (`playlistItems` = 1 юнит вместо 100 за поиск).
+- Поля JSON RuTube могут отличаться → шаг 2 требует живого запроса перед маппингом.
+- RuTube API неофициальный → при rate limit добавить паузу 0.5 с между запросами.
+- VK-токен не обязателен: «ru» работает на одном RuTube.

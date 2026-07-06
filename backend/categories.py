@@ -8,6 +8,7 @@ class Category(TypedDict):
     hint: str
     base_topics: list[str]
     queries: list[str]
+    queries_ru: list[str]
 
 
 CATEGORIES: dict[str, Category] = {
@@ -23,6 +24,11 @@ CATEGORIES: dict[str, Category] = {
             "math proof beautiful",
             "astronomy discovery explained",
         ],
+        "queries_ru": [
+            "научпоп физика объяснение",
+            "математика красивое доказательство",
+            "астрономия открытия космос",
+        ],
     },
     "history": {
         "id": "history",
@@ -35,6 +41,11 @@ CATEGORIES: dict[str, Category] = {
             "archaeology dig discovery",
             "forgotten history explained",
             "medieval history untold",
+        ],
+        "queries_ru": [
+            "история древних цивилизаций документальный",
+            "археологические находки",
+            "неизвестные страницы истории",
         ],
     },
     "art": {
@@ -49,6 +60,11 @@ CATEGORIES: dict[str, Category] = {
             "illustration technique secrets",
             "graphic design breakdown",
         ],
+        "queries_ru": [
+            "история живописи разбор картины",
+            "процесс художника таймлапс",
+            "дизайн разбор",
+        ],
     },
     "tech": {
         "id": "tech",
@@ -61,6 +77,11 @@ CATEGORIES: dict[str, Category] = {
             "mechanical engineering explained",
             "hardware deep dive",
             "how machines are made factory",
+        ],
+        "queries_ru": [
+            "как это устроено инженерия",
+            "как делают на заводе производство",
+            "разбор техники железо",
         ],
     },
     "software": {
@@ -75,6 +96,11 @@ CATEGORIES: dict[str, Category] = {
             "open source project story",
             "developer interview workflow",
         ],
+        "queries_ru": [
+            "программирование разбор архитектуры",
+            "история создания программы",
+            "веб-разработка практика",
+        ],
     },
     "nature": {
         "id": "nature",
@@ -87,6 +113,11 @@ CATEGORIES: dict[str, Category] = {
             "ecology system explained",
             "rare animal encounter",
             "nature expedition remote",
+        ],
+        "queries_ru": [
+            "дикая природа документальный",
+            "удивительные животные",
+            "экспедиция природа",
         ],
     },
     "philosophy": {
@@ -101,6 +132,11 @@ CATEGORIES: dict[str, Category] = {
             "ethics dilemma debate",
             "ancient wisdom modern life",
         ],
+        "queries_ru": [
+            "философия просто о сложном",
+            "стоицизм практика жизни",
+            "мысленный эксперимент философия",
+        ],
     },
     "food": {
         "id": "food",
@@ -113,6 +149,11 @@ CATEGORIES: dict[str, Category] = {
             "world street food documentary",
             "fermentation food culture",
             "chef secret recipe breakdown",
+        ],
+        "queries_ru": [
+            "кухни мира уличная еда",
+            "наука кулинарии техника",
+            "рецепт от шефа разбор",
         ],
     },
     "games": {
@@ -127,6 +168,11 @@ CATEGORIES: dict[str, Category] = {
             "indie game dev story",
             "board game strategy explained",
         ],
+        "queries_ru": [
+            "разбор геймдизайна",
+            "история видеоигр",
+            "инди разработка игр",
+        ],
     },
     "music": {
         "id": "music",
@@ -139,6 +185,11 @@ CATEGORIES: dict[str, Category] = {
             "music history forgotten genre",
             "sound design behind the track",
             "instrument technique secrets",
+        ],
+        "queries_ru": [
+            "теория музыки объяснение",
+            "история музыкального жанра",
+            "как устроен звук саунд-дизайн",
         ],
     },
     "health": {
@@ -153,6 +204,11 @@ CATEGORIES: dict[str, Category] = {
             "medical research breakthrough",
             "human body how it works",
         ],
+        "queries_ru": [
+            "научный подход тренировки",
+            "психология исследования",
+            "как работает организм человека",
+        ],
     },
     "business": {
         "id": "business",
@@ -165,6 +221,11 @@ CATEGORIES: dict[str, Category] = {
             "economics explained history",
             "business model breakdown",
             "entrepreneur niche market",
+        ],
+        "queries_ru": [
+            "история бизнеса разбор",
+            "экономика простыми словами",
+            "предприниматель история провала",
         ],
     },
     "culture": {
@@ -179,6 +240,11 @@ CATEGORIES: dict[str, Category] = {
             "sociology experiment explained",
             "social phenomenon analysis",
         ],
+        "queries_ru": [
+            "традиции народов мира документальный",
+            "путешествие отдалённые места",
+            "социология эксперименты",
+        ],
     },
     "education": {
         "id": "education",
@@ -191,6 +257,11 @@ CATEGORIES: dict[str, Category] = {
             "teaching method innovative",
             "education system reform documentary",
             "study technique evidence based",
+        ],
+        "queries_ru": [
+            "как учиться эффективно наука",
+            "методики преподавания",
+            "как работает память обучение",
         ],
     },
     "literature": {
@@ -205,6 +276,11 @@ CATEGORIES: dict[str, Category] = {
             "literary history forgotten author",
             "author interview creative process",
         ],
+        "queries_ru": [
+            "разбор книги анализ",
+            "писательское мастерство",
+            "забытые писатели история литературы",
+        ],
     },
     "movies": {
         "id": "movies",
@@ -217,6 +293,11 @@ CATEGORIES: dict[str, Category] = {
             "cinema history pioneering technique",
             "movie making behind the scenes",
             "director interview filmmaking craft",
+        ],
+        "queries_ru": [
+            "разбор фильма кинематография",
+            "история кино",
+            "как снимают кино закулисье",
         ],
     },
     "sports": {
@@ -231,6 +312,11 @@ CATEGORIES: dict[str, Category] = {
             "training method elite athlete",
             "extreme sport documentary",
         ],
+        "queries_ru": [
+            "спортивная наука биомеханика",
+            "история спорта великие моменты",
+            "тренировки профессиональных атлетов",
+        ],
     },
     "home": {
         "id": "home",
@@ -244,6 +330,11 @@ CATEGORIES: dict[str, Category] = {
             "gardening technique organic",
             "DIY home project woodworking",
         ],
+        "queries_ru": [
+            "ремонт своими руками до и после",
+            "дизайн интерьера разбор",
+            "сад огород советы",
+        ],
     },
     "fun": {
         "id": "fun",
@@ -256,6 +347,11 @@ CATEGORIES: dict[str, Category] = {
             "unexpected world record",
             "absurd history fact explained",
             "comedy sketch analysis",
+        ],
+        "queries_ru": [
+            "странные эксперименты",
+            "абсурдные факты истории",
+            "смешные изобретения",
         ],
     },
 }

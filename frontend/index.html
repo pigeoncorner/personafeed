@@ -13,6 +13,12 @@
       <span class="logo-icon">▶</span>
       <span class="logo-text">PersonaFeed</span>
     </div>
+    <div class="topbar-center">
+      <div id="source-toggle" class="hidden">
+        <button id="src-youtube" class="src-btn active">▶ YouTube</button>
+        <button id="src-ru" class="src-btn">VK · RuTube</button>
+      </div>
+    </div>
     <div class="topbar-right">
       <button id="surprise-btn" class="hidden" title="Перетасовать ленту">🎲 Удиви меня</button>
     </div>
@@ -47,14 +53,13 @@
     <div class="modal-dialog">
       <button id="modal-close" title="Закрыть">✕</button>
       <div class="player-wrap">
-        <iframe id="player-iframe" src="" title="YouTube player" frameborder="0"
+        <iframe id="player-iframe" src="" title="Video player" frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowfullscreen></iframe>
       </div>
       <div class="modal-info">
         <div id="modal-title"></div>
         <div id="modal-channel"></div>
-        <div id="modal-why" class="hidden"></div>
       </div>
     </div>
   </div>

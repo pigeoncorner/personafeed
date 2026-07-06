@@ -4,6 +4,7 @@ from pydantic import BaseModel
 class GridRequest(BaseModel):
     categories: list[str]
     limit: int = 40
+    source: str = "youtube"
 
 
 class VideoItem(BaseModel):
@@ -18,6 +19,8 @@ class VideoItem(BaseModel):
     why_relevant: str = ""
     category_id: str = ""
     category_label: str = ""
+    source: str = "youtube"
+    embed_url: str = ""
 
 
 class GridResponse(BaseModel):

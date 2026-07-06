@@ -50,6 +50,40 @@ body {
   letter-spacing: -1px;
 }
 
+.topbar-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+#source-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--chip-bg);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.src-btn {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.src-btn:hover { background: #e5e5e5; color: var(--text); }
+
+.src-btn.active {
+  background: var(--chip-active-bg);
+  color: var(--chip-active-text);
+}
+
 .topbar-right {
   flex-shrink: 0;
   display: flex;
@@ -234,15 +268,25 @@ main { padding: 8px 24px 40px; }
   color: var(--text-secondary);
 }
 
-.cat-badge {
-  display: inline-block;
+.card-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
   margin-top: 6px;
+}
+
+.cat-badge, .source-badge {
+  display: inline-block;
   padding: 2px 8px;
   font-size: 11px;
   border-radius: 10px;
   background: var(--chip-bg);
   color: var(--text-secondary);
 }
+
+.src-youtube { background: #fff0f0; color: #c00; }
+.src-vk      { background: #f0f4ff; color: #2060c0; }
+.src-rutube  { background: #fff4f0; color: #c04000; }
 
 .error-msg {
   grid-column: 1 / -1;
