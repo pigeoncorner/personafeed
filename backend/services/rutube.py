@@ -36,13 +36,15 @@ def search_videos(
     cutoff = datetime.now(timezone.utc) - timedelta(days=freshness_days)
     fetched_count = 0  # total items received from API (before date filter)
 
+    failed_count = 0
     for i, query in enumerate(queries):
         if i > 0:
             time.sleep(_REQUEST_DELAY)
         try:
             items = _fetch_query(query, count=max_per_query * 2)
         except Exception as exc:
-            logger.warning("RuTube search failed for query '%s': %s", query, exc)
+            logger.debug("RuTube query failed '%s': %s", query, exc)
+            failed_count += 1
             continue
 
         fetched_count += len(items)
@@ -71,6 +73,10 @@ def search_videos(
 
             if len(results) >= max_per_query * len(queries):
                 break
+
+    if failed_count == len(queries) and not results:
+        logger.warning("RuTube: все %d запросов упали (нет сети или геоблок)", failed_count)
+        return results
 
     # If API returned items but date filter removed all of them, retry without cutoff
     if not results and fetched_count > 0 and freshness_days < 3650:
