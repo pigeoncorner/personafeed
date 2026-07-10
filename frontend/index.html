@@ -27,6 +27,73 @@
   <!-- Chips -->
   <nav id="chips-row" class="hidden"></nav>
 
+  <!-- Filters -->
+  <div id="filters-row" class="hidden">
+    <button id="filters-toggle" class="chip" title="Настройки выборки">🎛 Фильтры</button>
+    <button class="chip preset-chip" data-preset="rising"
+      title="До 10 тыс. просмотров, каналы младше года, за 30 дней, по динамике">🌱 Восходящие</button>
+    <button class="chip preset-chip yt-only" data-preset="leaders"
+      title="Каналы от 100 тыс. подписчиков, по просмотрам">👑 Лидеры ниши</button>
+    <button class="chip preset-chip yt-only" data-preset="discussed"
+      title="От 100 комментариев, по комментариям">💬 Дискуссии</button>
+    <button class="chip preset-chip yt-only" data-preset="viral"
+      title="Просмотров кратно больше, чем подписчиков у канала">🎯 Вирусное</button>
+    <button id="filters-reset" class="chip hidden">✖ Сброс</button>
+  </div>
+  <div id="filters-panel" class="hidden">
+    <label>Период
+      <select id="f-period">
+        <option value="">всё время</option>
+        <option value="7">7 дней</option>
+        <option value="30">30 дней</option>
+        <option value="90">90 дней</option>
+      </select>
+    </label>
+    <label>Просмотры
+      <select id="f-views">
+        <option value="">любые</option>
+        <option value="lt10k">до 10 тыс.</option>
+        <option value="mid">10–100 тыс.</option>
+        <option value="gt100k">от 100 тыс.</option>
+      </select>
+    </label>
+    <label class="yt-only">Комментарии
+      <select id="f-comments">
+        <option value="">любые</option>
+        <option value="10">от 10</option>
+        <option value="100">от 100</option>
+        <option value="1000">от 1000</option>
+      </select>
+    </label>
+    <label>Длительность
+      <select id="f-duration">
+        <option value="">любая</option>
+        <option value="noshorts">без Shorts</option>
+        <option value="lt4">до 4 мин</option>
+        <option value="4to20">4–20 мин</option>
+        <option value="gt20">от 20 мин</option>
+      </select>
+    </label>
+    <label class="yt-only">Каналы
+      <select id="f-channel">
+        <option value="">любые</option>
+        <option value="top">топ-блогеры (100k+)</option>
+        <option value="small">малые (до 10k)</option>
+        <option value="young">молодые (до года)</option>
+      </select>
+    </label>
+    <label>Сортировка
+      <select id="f-sort">
+        <option value="random">случайно</option>
+        <option value="date">сначала новые</option>
+        <option value="views">по просмотрам</option>
+        <option value="comments">по комментариям</option>
+        <option value="engagement">по вовлечённости</option>
+        <option value="velocity">по динамике</option>
+      </select>
+    </label>
+  </div>
+
   <main>
     <!-- Onboarding: category selection -->
     <section id="onboarding" class="hidden">

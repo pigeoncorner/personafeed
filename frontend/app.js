@@ -2,10 +2,21 @@ const $ = (id) => document.getElementById(id);
 
 const STORAGE_KEY = "pf_categories";
 const SOURCE_KEY = "pf_source";
+const FILTERS_KEY = "pf_filters";
 
 let allCategories = [];
 let selectedIds = [];
+let currentIds = [];
 let currentSource = localStorage.getItem(SOURCE_KEY) || "youtube";
+
+const DEFAULT_FILTERS = {
+  period: "", views: "", comments: "", duration: "", channel: "",
+  sort: "random", preset: "",
+};
+let filterState = { ...DEFAULT_FILTERS };
+try {
+  filterState = { ...DEFAULT_FILTERS, ...JSON.parse(localStorage.getItem(FILTERS_KEY) || "{}") };
+} catch (e) { /* повреждённый state — остаёмся на дефолтах */ }
 
 /* ---------- Formatting ---------- */
 
@@ -73,7 +84,106 @@ function setSource(src) {
   currentSource = src;
   localStorage.setItem(SOURCE_KEY, src);
   updateSourceToggle();
+  sanitizeFiltersForSource();
+  saveFilters();
+  syncFiltersUI();
   loadGrid(selectedIds);
+}
+
+/* ---------- Filters ---------- */
+
+const PRESETS = {
+  rising:    { period: "30", views: "lt10k", channel: "young", sort: "velocity" },
+  leaders:   { channel: "top", sort: "views" },
+  discussed: { comments: "100", sort: "comments" },
+  viral:     { period: "30", sort: "views" },
+};
+
+const YT_ONLY_FIELDS = ["comments", "channel"];
+const YT_ONLY_SORTS = ["comments", "engagement"];
+const YT_ONLY_PRESETS = ["leaders", "discussed", "viral"];
+
+function sanitizeFiltersForSource() {
+  if (currentSource !== "ru") return;
+  YT_ONLY_FIELDS.forEach((k) => { filterState[k] = ""; });
+  if (YT_ONLY_SORTS.includes(filterState.sort)) filterState.sort = "random";
+  if (YT_ONLY_PRESETS.includes(filterState.preset)) filterState.preset = "";
+}
+
+function isFiltersDefault() {
+  return Object.keys(DEFAULT_FILTERS).every((k) => filterState[k] === DEFAULT_FILTERS[k]);
+}
+
+function saveFilters() {
+  localStorage.setItem(FILTERS_KEY, JSON.stringify(filterState));
+}
+
+function buildFilterPayload() {
+  const f = {};
+  const s = filterState;
+  if (s.period) f.period_days = Number(s.period);
+  if (s.views === "lt10k") f.views_max = 10000;
+  else if (s.views === "mid") { f.views_min = 10000; f.views_max = 100000; }
+  else if (s.views === "gt100k") f.views_min = 100000;
+  if (s.comments) f.comments_min = Number(s.comments);
+  if (s.duration === "noshorts") f.exclude_shorts = true;
+  else if (s.duration === "lt4") f.duration_max = 240;
+  else if (s.duration === "4to20") { f.duration_min = 240; f.duration_max = 1200; }
+  else if (s.duration === "gt20") f.duration_min = 1200;
+  if (s.channel === "top") f.subscribers_min = 100000;
+  else if (s.channel === "small") f.subscribers_max = 10000;
+  else if (s.channel === "young") f.channel_age_max_days = 365;
+  if (s.preset === "viral") f.viral_ratio_min = 2;
+  return Object.keys(f).length ? f : null;
+}
+
+function syncFiltersUI() {
+  $("f-period").value = filterState.period;
+  $("f-views").value = filterState.views;
+  $("f-comments").value = filterState.comments;
+  $("f-duration").value = filterState.duration;
+  $("f-channel").value = filterState.channel;
+  $("f-sort").value = filterState.sort;
+
+  const isRu = currentSource === "ru";
+  document.querySelectorAll(".yt-only").forEach((el) => el.classList.toggle("hidden", isRu));
+  YT_ONLY_SORTS.forEach((sortKey) => {
+    const opt = document.querySelector(`#f-sort option[value="${sortKey}"]`);
+    if (opt) opt.hidden = isRu;
+  });
+
+  document.querySelectorAll(".preset-chip").forEach((c) => {
+    c.classList.toggle("active", !!filterState.preset && c.dataset.preset === filterState.preset);
+  });
+  $("filters-reset").classList.toggle("hidden", isFiltersDefault());
+}
+
+function onFilterChange(key, value) {
+  filterState[key] = value;
+  filterState.preset = "";
+  sanitizeFiltersForSource();
+  saveFilters();
+  syncFiltersUI();
+  loadGrid(currentIds);
+}
+
+function applyPreset(name) {
+  if (filterState.preset === name) {
+    filterState = { ...DEFAULT_FILTERS }; // повторный клик по пресету — сброс
+  } else {
+    filterState = { ...DEFAULT_FILTERS, ...PRESETS[name], preset: name };
+  }
+  sanitizeFiltersForSource();
+  saveFilters();
+  syncFiltersUI();
+  loadGrid(currentIds);
+}
+
+function resetFilters() {
+  filterState = { ...DEFAULT_FILTERS };
+  saveFilters();
+  syncFiltersUI();
+  loadGrid(currentIds);
 }
 
 /* ---------- Onboarding ---------- */
@@ -105,9 +215,11 @@ function finishOnboarding() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
   renderChips();
   $("chips-row").classList.remove("hidden");
+  $("filters-row").classList.remove("hidden");
   $("surprise-btn").classList.remove("hidden");
   $("source-toggle").classList.remove("hidden");
   updateSourceToggle();
+  syncFiltersUI();
   loadGrid(selectedIds);
 }
 
@@ -252,7 +364,7 @@ async function loadGrid(categoryIds) {
     const res = await fetch("/grid", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categories: categoryIds, limit: 40, source: currentSource }),
+      body: JSON.stringify({ categories: categoryIds, limit: 40, source: currentSource, filters: buildFilterPayload(), sort: filterState.sort }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -292,9 +404,11 @@ async function init() {
   } else {
     renderChips();
     $("chips-row").classList.remove("hidden");
+    $("filters-row").classList.remove("hidden");
     $("surprise-btn").classList.remove("hidden");
     $("source-toggle").classList.remove("hidden");
     updateSourceToggle();
+    syncFiltersUI();
     loadGrid(selectedIds);
   }
 }
@@ -311,5 +425,15 @@ document.querySelector(".modal-backdrop").addEventListener("click", closePlayer)
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("player-modal").classList.contains("hidden")) closePlayer();
 });
+
+$("filters-toggle").addEventListener("click", () => $("filters-panel").classList.toggle("hidden"));
+["period", "views", "comments", "duration", "channel"].forEach((key) => {
+  $(`f-${key}`).addEventListener("change", (e) => onFilterChange(key, e.target.value));
+});
+$("f-sort").addEventListener("change", (e) => onFilterChange("sort", e.target.value));
+document.querySelectorAll(".preset-chip").forEach((c) => {
+  c.addEventListener("click", () => applyPreset(c.dataset.preset));
+});
+$("filters-reset").addEventListener("click", resetFilters);
 
 init();
