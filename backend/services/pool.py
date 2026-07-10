@@ -9,6 +9,7 @@ import logging
 import random
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 from backend.config import settings
@@ -19,6 +20,9 @@ logger = logging.getLogger(__name__)
 _POOLS_FILE = Path("data/pools.json")
 _TTL = 86400  # 24 h
 _MAX_PER_QUERY = 10
+# версия формата записи пула: несовпадение → пул перезапрашивается
+# (v2 добавила likes/comments/channel_* — старый кеш без них бесполезен для фильтров)
+_POOL_VERSION = 2
 
 # {pool_key: {"fetched_at": float, "videos": [...]}}
 _pools: dict[str, dict] = {}
@@ -49,6 +53,8 @@ def _save_to_disk() -> None:
 
 
 def _is_stale(pool: dict) -> bool:
+    if pool.get("version") != _POOL_VERSION:
+        return True
     return time.time() - pool.get("fetched_at", 0) > _TTL
 
 
@@ -97,7 +103,7 @@ def get_pool(cat: dict, source: str) -> list[dict]:
 
     videos = _fetch(cat, source)
     with _lock:
-        _pools[pool_key] = {"fetched_at": time.time(), "videos": videos}
+        _pools[pool_key] = {"version": _POOL_VERSION, "fetched_at": time.time(), "videos": videos}
         _save_to_disk()
     return videos
 
@@ -114,7 +120,9 @@ def refresh_stale(categories: list[dict]) -> None:
                 try:
                     videos = _fetch(cat, source)
                     with _lock:
-                        _pools[pool_key] = {"fetched_at": time.time(), "videos": videos}
+                        _pools[pool_key] = {
+                            "version": _POOL_VERSION, "fetched_at": time.time(), "videos": videos
+                        }
                 except Exception as exc:
                     logger.warning(
                         "Pool refresh failed for '%s' source='%s': %s", cat["id"], source, exc
@@ -124,8 +132,88 @@ def refresh_stale(categories: list[dict]) -> None:
             _save_to_disk()
 
 
+def _published_ts(value: str) -> float:
+    if not value:
+        return 0.0
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def _engagement(v: dict) -> float:
+    return (v.get("likes", 0) + v.get("comments", 0)) / max(v.get("views", 0), 1)
+
+
+def _velocity(v: dict) -> float:
+    ts = _published_ts(v.get("published_at", ""))
+    if not ts:
+        return -1.0  # видео без даты — в конец
+    days = max((time.time() - ts) / 86400, 1.0)
+    return v.get("views", 0) / days
+
+
+_SORT_KEYS = {
+    "date": lambda v: _published_ts(v.get("published_at", "")),
+    "views": lambda v: v.get("views", 0),
+    "comments": lambda v: v.get("comments", 0),
+    "engagement": _engagement,
+    "velocity": _velocity,
+}
+
+VALID_SORTS = {"random", *_SORT_KEYS}
+
+
+def _passes_filters(v: dict, f: dict) -> bool:
+    views = v.get("views", 0)
+    duration = v.get("duration", 0)
+    subs = v.get("channel_subscribers", 0)
+
+    if f.get("period_days") is not None:
+        ts = _published_ts(v.get("published_at", ""))
+        if not ts or ts < time.time() - f["period_days"] * 86400:
+            return False
+    if f.get("views_min") is not None and views < f["views_min"]:
+        return False
+    if f.get("views_max") is not None and views > f["views_max"]:
+        return False
+    if f.get("comments_min") is not None and v.get("comments", 0) < f["comments_min"]:
+        return False
+    if f.get("engagement_min") is not None and _engagement(v) < f["engagement_min"]:
+        return False
+    if f.get("duration_min") is not None and duration < f["duration_min"]:
+        return False
+    if f.get("duration_max") is not None and duration > f["duration_max"]:
+        return False
+    if f.get("exclude_shorts") and duration < 60:
+        return False
+    if f.get("subscribers_min") is not None and subs < f["subscribers_min"]:
+        return False
+    if f.get("subscribers_max") is not None and subs > f["subscribers_max"]:
+        return False
+    if f.get("channel_age_max_days") is not None:
+        ts = _published_ts(v.get("channel_published_at", ""))
+        if not ts or ts < time.time() - f["channel_age_max_days"] * 86400:
+            return False
+    if f.get("viral_ratio_min") is not None:
+        if subs <= 0 or views / subs < f["viral_ratio_min"]:
+            return False
+    return True
+
+
+def _apply_filters(videos: list[dict], filters: dict | None) -> list[dict]:
+    if not filters:
+        return videos
+    return [v for v in videos if _passes_filters(v, filters)]
+
+
 def sample(
-    category_ids: list[str], categories_map: dict, limit: int = 40, source: str = "youtube"
+    category_ids: list[str],
+    categories_map: dict,
+    limit: int = 40,
+    source: str = "youtube",
+    filters: dict | None = None,
+    sort: str = "random",
 ) -> list[dict]:
     """Return up to `limit` videos interleaved across requested categories for given source."""
     buckets: list[list[dict]] = []
@@ -133,7 +221,7 @@ def sample(
         cat = categories_map.get(cid)
         if cat is None:
             continue
-        videos = get_pool(cat, source)
+        videos = _apply_filters(get_pool(cat, source), filters)
         if not videos:
             continue
         shuffled = list(videos)
@@ -148,6 +236,21 @@ def sample(
 
     if not buckets:
         return []
+
+    sort_key = _SORT_KEYS.get(sort)
+    if sort_key is not None:
+        merged: list[dict] = []
+        merged_seen: set[str] = set()
+        for bucket in buckets:
+            for video in bucket:
+                vid_id = video.get("video_id", "")
+                if vid_id and vid_id in merged_seen:
+                    continue
+                if vid_id:
+                    merged_seen.add(vid_id)
+                merged.append(video)
+        merged.sort(key=sort_key, reverse=True)
+        return merged[:limit]
 
     # Round-robin interleave
     result: list[dict] = []

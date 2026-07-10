@@ -45,8 +45,8 @@ def reset_pools():
 # ---------- sample() ----------
 
 def test_sample_interleave():
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("s", 5)}
-    pool_service._pools["history:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("h", 5)}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("s", 5)}
+    pool_service._pools["history:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("h", 5)}
 
     result = pool_service.sample(["science", "history"], _CATEGORIES_MAP, limit=6, source="youtube")
     cat_ids = [v["category_id"] for v in result]
@@ -55,16 +55,16 @@ def test_sample_interleave():
 
 
 def test_sample_respects_limit():
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("s", 20)}
-    pool_service._pools["history:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("h", 20)}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("s", 20)}
+    pool_service._pools["history:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("h", 20)}
 
     result = pool_service.sample(["science", "history"], _CATEGORIES_MAP, limit=10, source="youtube")
     assert len(result) <= 10
 
 
 def test_sample_no_duplicates():
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("s", 10)}
-    pool_service._pools["history:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("h", 10)}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("s", 10)}
+    pool_service._pools["history:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("h", 10)}
 
     result = pool_service.sample(["science", "history"], _CATEGORIES_MAP, limit=40, source="youtube")
     ids = [v["video_id"] for v in result]
@@ -72,7 +72,7 @@ def test_sample_no_duplicates():
 
 
 def test_sample_tags_category():
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("s", 3)}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("s", 3)}
 
     result = pool_service.sample(["science"], _CATEGORIES_MAP, limit=10, source="youtube")
     assert all(v["category_id"] == "science" for v in result)
@@ -80,15 +80,15 @@ def test_sample_tags_category():
 
 
 def test_sample_skips_unknown_category():
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("s", 3)}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("s", 3)}
 
     result = pool_service.sample(["science", "nonexistent"], _CATEGORIES_MAP, limit=10, source="youtube")
     assert all(v["category_id"] == "science" for v in result)
 
 
 def test_sample_sources_are_separate():
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("yt", 5, "youtube")}
-    pool_service._pools["science:ru"] = {"fetched_at": time.time(), "videos": _make_videos("ru", 5, "rutube")}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("yt", 5, "youtube")}
+    pool_service._pools["science:ru"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("ru", 5, "rutube")}
 
     yt_result = pool_service.sample(["science"], _CATEGORIES_MAP, limit=10, source="youtube")
     ru_result = pool_service.sample(["science"], _CATEGORIES_MAP, limit=10, source="ru")
@@ -100,7 +100,7 @@ def test_sample_sources_are_separate():
 # ---------- get_pool() / TTL ----------
 
 def test_pool_fresh_no_fetch():
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("s", 5)}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("s", 5)}
 
     with patch("backend.services.pool.youtube.search_videos") as mock_yt:
         result = pool_service.get_pool(_CATEGORIES_MAP["science"], "youtube")
@@ -111,6 +111,7 @@ def test_pool_fresh_no_fetch():
 
 def test_pool_expired_refetch():
     pool_service._pools["science:youtube"] = {
+        "version": pool_service._POOL_VERSION,
         "fetched_at": time.time() - pool_service._TTL - 1,
         "videos": _make_videos("s", 3),
     }
@@ -121,6 +122,18 @@ def test_pool_expired_refetch():
 
     mock_yt.assert_called_once()
     assert len(result) == 7
+
+
+def test_pool_old_version_is_stale():
+    # запись без поля version (старый формат кеша) перезапрашивается
+    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("s", 3)}
+    fresh = _make_videos("s_new", 6)
+
+    with patch("backend.services.pool.youtube.search_videos", return_value=fresh) as mock_yt:
+        result = pool_service.get_pool(_CATEGORIES_MAP["science"], "youtube")
+
+    mock_yt.assert_called_once()
+    assert len(result) == 6
 
 
 def test_pool_missing_fetches():
@@ -175,7 +188,7 @@ def test_pool_persistence(tmp_path, monkeypatch):
     monkeypatch.setattr(pool_service, "_POOLS_FILE", tmp_path / "pools.json")
 
     videos = _make_videos("p", 5)
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": videos}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": videos}
     pool_service._save_to_disk()
 
     pool_service._pools.clear()
@@ -188,8 +201,8 @@ def test_pool_persistence(tmp_path, monkeypatch):
 # ---------- refresh_stale() ----------
 
 def test_refresh_stale_skips_fresh():
-    pool_service._pools["science:youtube"] = {"fetched_at": time.time(), "videos": _make_videos("s", 3)}
-    pool_service._pools["science:ru"] = {"fetched_at": time.time(), "videos": _make_videos("r", 3, "rutube")}
+    pool_service._pools["science:youtube"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("s", 3)}
+    pool_service._pools["science:ru"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("r", 3, "rutube")}
 
     with patch("backend.services.pool.youtube.search_videos") as mock_yt, \
          patch("backend.services.rutube.search_videos") as mock_rt:
@@ -201,10 +214,11 @@ def test_refresh_stale_skips_fresh():
 
 def test_refresh_stale_refetches_expired():
     pool_service._pools["science:youtube"] = {
+        "version": pool_service._POOL_VERSION,
         "fetched_at": time.time() - pool_service._TTL - 1,
         "videos": _make_videos("s", 2),
     }
-    pool_service._pools["science:ru"] = {"fetched_at": time.time(), "videos": _make_videos("r", 3, "rutube")}
+    pool_service._pools["science:ru"] = {"version": pool_service._POOL_VERSION, "fetched_at": time.time(), "videos": _make_videos("r", 3, "rutube")}
     fresh = _make_videos("s_new", 8)
 
     with patch("backend.services.pool.youtube.search_videos", return_value=fresh) as mock_yt, \

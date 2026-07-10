@@ -29,7 +29,8 @@ _FAKE_VIDEOS = {
 }
 
 
-def _fake_sample_youtube(category_ids, categories_map, limit=40, source="youtube"):
+def _fake_sample_youtube(category_ids, categories_map, limit=40, source="youtube",
+                         filters=None, sort="random"):
     if source != "youtube":
         return []
     result = []
@@ -39,7 +40,8 @@ def _fake_sample_youtube(category_ids, categories_map, limit=40, source="youtube
     return result[:limit]
 
 
-def _fake_sample_ru(category_ids, categories_map, limit=40, source="youtube"):
+def _fake_sample_ru(category_ids, categories_map, limit=40, source="youtube",
+                    filters=None, sort="random"):
     if source != "ru":
         return []
     result = []
@@ -137,3 +139,32 @@ def test_grid_all_unknown():
 def test_grid_respects_limit():
     response = client.post("/grid", json={"categories": ["science", "history"], "limit": 1})
     assert response.status_code == 200
+
+
+def test_grid_invalid_sort():
+    response = client.post("/grid", json={"categories": ["science"], "sort": "magic"})
+    assert response.status_code == 422
+
+
+def test_grid_passes_filters_and_sort():
+    with patch("backend.routers.feed.pool_service.sample", side_effect=_fake_sample_youtube) as mock_sample:
+        response = client.post("/grid", json={
+            "categories": ["science"],
+            "sort": "views",
+            "filters": {"views_max": 10000, "exclude_shorts": True},
+        })
+    assert response.status_code == 200
+    args = mock_sample.call_args.args
+    filters, sort = args[4], args[5]
+    assert filters["views_max"] == 10000
+    assert filters["exclude_shorts"] is True
+    assert sort == "views"
+
+
+def test_grid_without_filters_backward_compatible():
+    response = client.post("/grid", json={"categories": ["science"]})
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert "likes" in item
+    assert "comments" in item
+    assert "channel_subscribers" in item

@@ -29,6 +29,12 @@ async def get_grid(req: GridRequest):
             detail=f"Неизвестный источник '{req.source}'. Допустимые: {sorted(_VALID_SOURCES)}"
         )
 
+    if req.sort not in pool_service.VALID_SORTS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Неизвестная сортировка '{req.sort}'. Допустимые: {sorted(pool_service.VALID_SORTS)}"
+        )
+
     valid_ids = [c for c in req.categories if c in CATEGORIES]
     unknown = [c for c in req.categories if c not in CATEGORIES]
     if unknown:
@@ -36,8 +42,9 @@ async def get_grid(req: GridRequest):
     if not valid_ids:
         raise HTTPException(status_code=422, detail="Нет известных категорий")
 
+    filters = req.filters.model_dump() if req.filters else None
     raw = await asyncio.to_thread(
-        pool_service.sample, valid_ids, CATEGORIES, req.limit, req.source
+        pool_service.sample, valid_ids, CATEGORIES, req.limit, req.source, filters, req.sort
     )
 
     items = [
@@ -49,7 +56,12 @@ async def get_grid(req: GridRequest):
             thumbnail=v.get("thumbnail", ""),
             duration=v.get("duration", 0),
             views=v.get("views", 0),
+            likes=v.get("likes", 0),
+            comments=v.get("comments", 0),
             published_at=v.get("published_at", ""),
+            channel_id=v.get("channel_id", ""),
+            channel_subscribers=v.get("channel_subscribers", 0),
+            channel_published_at=v.get("channel_published_at", ""),
             why_relevant=v.get("why_relevant", ""),
             category_id=v.get("category_id", ""),
             category_label=v.get("category_label", ""),

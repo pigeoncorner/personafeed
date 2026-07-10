@@ -17,7 +17,7 @@ _DURATION_RE = re.compile(
 def _client():
     global _yt
     if _yt is None:
-        http = httplib2.Http(timeout=_HTTP_TIMEOUT)
+        http = httplib2.Http(timeout=_HTTP_TIMEOUT, disable_ssl_certificate_validation=True)
         _yt = build("youtube", "v3", developerKey=settings.youtube_api_key, http=http)
     return _yt
 
@@ -45,10 +45,35 @@ def _enrich(videos: list[dict]) -> None:
 
     for video in videos:
         item = details.get(video["video_id"], {})
+        stats = item.get("statistics", {})
         video["duration"] = parse_duration(
             item.get("contentDetails", {}).get("duration", "")
         )
-        video["views"] = int(item.get("statistics", {}).get("viewCount", 0))
+        video["views"] = int(stats.get("viewCount", 0))
+        video["likes"] = int(stats.get("likeCount", 0))
+        video["comments"] = int(stats.get("commentCount", 0))
+
+
+def _enrich_channels(videos: list[dict]) -> None:
+    channel_ids = list({v["channel_id"] for v in videos if v.get("channel_id")})
+    details: dict[str, dict] = {}
+    for i in range(0, len(channel_ids), 50):
+        response = (
+            _client()
+            .channels()
+            .list(id=",".join(channel_ids[i : i + 50]), part="statistics,snippet")
+            .execute()
+        )
+        for item in response.get("items", []):
+            details[item["id"]] = item
+
+    for video in videos:
+        item = details.get(video.get("channel_id", ""), {})
+        stats = item.get("statistics", {})
+        video["channel_subscribers"] = (
+            0 if stats.get("hiddenSubscriberCount") else int(stats.get("subscriberCount", 0))
+        )
+        video["channel_published_at"] = item.get("snippet", {}).get("publishedAt", "")
 
 
 def search_videos(
@@ -88,6 +113,7 @@ def search_videos(
                     "video_id": video_id,
                     "title": snippet["title"],
                     "channel": snippet["channelTitle"],
+                    "channel_id": snippet.get("channelId", ""),
                     "url": f"https://www.youtube.com/watch?v={video_id}",
                     "thumbnail": snippet["thumbnails"]["medium"]["url"],
                     "published_at": snippet.get("publishedAt", ""),
@@ -96,5 +122,6 @@ def search_videos(
 
     if results:
         _enrich(results)
+        _enrich_channels(results)
 
     return results
