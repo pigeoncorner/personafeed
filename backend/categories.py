@@ -15,8 +15,8 @@ CATEGORIES: dict[str, Category] = {
     "science": {
         "id": "science",
         "emoji": "🔬",
-        "label": "Наука и математика",
-        "hint": "Физика, биология, химия, астрономия, математика",
+        "label": "Science & Math",
+        "hint": "Physics, biology, chemistry, astronomy, maths",
         "base_topics": ["science research", "physics discovery"],
         "queries": [
             "physics explained paradox",
@@ -33,8 +33,8 @@ CATEGORIES: dict[str, Category] = {
     "history": {
         "id": "history",
         "emoji": "🏛️",
-        "label": "История",
-        "hint": "Археология, древние цивилизации, военная история",
+        "label": "History",
+        "hint": "Archaeology, ancient civilisations, military history",
         "base_topics": ["history", "archaeology"],
         "queries": [
             "ancient civilization mystery documentary",
@@ -51,8 +51,8 @@ CATEGORIES: dict[str, Category] = {
     "art": {
         "id": "art",
         "emoji": "🎨",
-        "label": "Искусство и дизайн",
-        "hint": "Живопись, иллюстрация, фотография, мода",
+        "label": "Art & Design",
+        "hint": "Painting, illustration, photography, fashion",
         "base_topics": ["art", "design"],
         "queries": [
             "artist process timelapse painting",
@@ -69,8 +69,8 @@ CATEGORIES: dict[str, Category] = {
     "tech": {
         "id": "tech",
         "emoji": "⚙️",
-        "label": "Технологии и железо",
-        "hint": "Инженерия, механика, компьютеры",
+        "label": "Technology & Hardware",
+        "hint": "Engineering, mechanics, computers",
         "base_topics": ["engineering", "technology"],
         "queries": [
             "engineering how it works teardown",
@@ -87,8 +87,8 @@ CATEGORIES: dict[str, Category] = {
     "software": {
         "id": "software",
         "emoji": "💻",
-        "label": "Интернет и софт",
-        "hint": "Программирование, веб-разработка, дизайн ПО",
+        "label": "Internet & Software",
+        "hint": "Programming, web development, software design",
         "base_topics": ["software development", "programming"],
         "queries": [
             "software architecture explained",
@@ -105,8 +105,8 @@ CATEGORIES: dict[str, Category] = {
     "nature": {
         "id": "nature",
         "emoji": "🌿",
-        "label": "Природа и животные",
-        "hint": "Экология, дикая природа, фермерство",
+        "label": "Nature & Animals",
+        "hint": "Ecology, wildlife, farming",
         "base_topics": ["wildlife", "ecology"],
         "queries": [
             "wildlife behavior surprising documentary",
@@ -123,8 +123,8 @@ CATEGORIES: dict[str, Category] = {
     "philosophy": {
         "id": "philosophy",
         "emoji": "🧠",
-        "label": "Философия и жизнь",
-        "hint": "Философия, убеждения, саморазвитие",
+        "label": "Philosophy & Life",
+        "hint": "Philosophy, beliefs, self-improvement",
         "base_topics": ["philosophy", "self improvement"],
         "queries": [
             "philosophy thought experiment explained",
@@ -141,8 +141,8 @@ CATEGORIES: dict[str, Category] = {
     "food": {
         "id": "food",
         "emoji": "🍜",
-        "label": "Еда и кулинария",
-        "hint": "Кухни мира, выпечка, нутрициология",
+        "label": "Food & Cooking",
+        "hint": "World cuisines, baking, nutrition",
         "base_topics": ["cooking", "food culture"],
         "queries": [
             "cooking technique explained science",
@@ -159,8 +159,8 @@ CATEGORIES: dict[str, Category] = {
     "games": {
         "id": "games",
         "emoji": "🎮",
-        "label": "Игры",
-        "hint": "Видеоигры, консоли, настольные игры",
+        "label": "Games",
+        "hint": "Video games, consoles, board games",
         "base_topics": ["video games", "board games"],
         "queries": [
             "game design analysis deep dive",
@@ -177,8 +177,8 @@ CATEGORIES: dict[str, Category] = {
     "music": {
         "id": "music",
         "emoji": "🎵",
-        "label": "Музыка и звук",
-        "hint": "Музыканты, история музыки, звук",
+        "label": "Music & Sound",
+        "hint": "Musicians, music history, audio",
         "base_topics": ["music", "music history"],
         "queries": [
             "music theory explained visually",
@@ -195,8 +195,8 @@ CATEGORIES: dict[str, Category] = {
     "health": {
         "id": "health",
         "emoji": "🩺",
-        "label": "Здоровье",
-        "hint": "Фитнес, психология, медицина",
+        "label": "Health",
+        "hint": "Fitness, psychology, medicine",
         "base_topics": ["health", "psychology"],
         "queries": [
             "sports science training explained",
@@ -213,8 +213,8 @@ CATEGORIES: dict[str, Category] = {
     "business": {
         "id": "business",
         "emoji": "💼",
-        "label": "Бизнес и экономика",
-        "hint": "Предпринимательство, деньги, рынки",
+        "label": "Business & Economics",
+        "hint": "Entrepreneurship, money, markets",
         "base_topics": ["business", "economics"],
         "queries": [
             "startup failure story lessons",
@@ -231,8 +231,8 @@ CATEGORIES: dict[str, Category] = {
     "culture": {
         "id": "culture",
         "emoji": "🌍",
-        "label": "Культура и общество",
-        "hint": "Социология, путешествия, политика, семья",
+        "label": "Culture & Society",
+        "hint": "Sociology, traditions, politics, family",
         "base_topics": ["society", "travel"],
         "queries": [
             "culture documentary hidden tradition",
@@ -249,8 +249,8 @@ CATEGORIES: dict[str, Category] = {
     "education": {
         "id": "education",
         "emoji": "📚",
-        "label": "Образование",
-        "hint": "Преподавание, обмен знаниями, школы",
+        "label": "Education",
+        "hint": "Teaching, knowledge sharing, schools",
         "base_topics": ["education", "learning"],
         "queries": [
             "learning science how memory works",
@@ -267,8 +267,8 @@ CATEGORIES: dict[str, Category] = {
     "literature": {
         "id": "literature",
         "emoji": "📖",
-        "label": "Литература",
-        "hint": "Книги, писательство, издательское дело",
+        "label": "Literature",
+        "hint": "Books, writing, publishing",
         "base_topics": ["books", "literature"],
         "queries": [
             "book analysis deep dive",
@@ -285,8 +285,8 @@ CATEGORIES: dict[str, Category] = {
     "movies": {
         "id": "movies",
         "emoji": "🎬",
-        "label": "Кино и сериалы",
-        "hint": "Фильмы, сериалы, стриминг",
+        "label": "Film & Series",
+        "hint": "Movies, TV shows, streaming",
         "base_topics": ["movies", "tv series"],
         "queries": [
             "film analysis cinematography explained",
@@ -303,8 +303,8 @@ CATEGORIES: dict[str, Category] = {
     "sports": {
         "id": "sports",
         "emoji": "⚽",
-        "label": "Спорт",
-        "hint": "Футбол, бодибилдинг и любые виды спорта",
+        "label": "Sports",
+        "hint": "Football, bodybuilding, any sport",
         "base_topics": ["sports"],
         "queries": [
             "sports science athlete biomechanics",
@@ -321,8 +321,8 @@ CATEGORIES: dict[str, Category] = {
     "home": {
         "id": "home",
         "emoji": "🏡",
-        "label": "Дом и сад",
-        "hint": "Интерьеры, садоводство, домашняя ферма",
+        "label": "Home & Garden",
+        "hint": "Interiors, gardening, homesteading",
         "base_topics": ["home improvement", "gardening"],
         "queries": [
             "home renovation transformation",
@@ -339,8 +339,8 @@ CATEGORIES: dict[str, Category] = {
     "fun": {
         "id": "fun",
         "emoji": "🤪",
-        "label": "Развлечения",
-        "hint": "Странное, смешное, сатирическое",
+        "label": "Entertainment",
+        "hint": "Weird, funny, satirical",
         "base_topics": ["weird funny", "satire"],
         "queries": [
             "weird science experiment",
@@ -352,6 +352,23 @@ CATEGORIES: dict[str, Category] = {
             "странные эксперименты",
             "абсурдные факты истории",
             "смешные изобретения",
+        ],
+    },
+    "travel": {
+        "id": "travel",
+        "emoji": "✈️",
+        "label": "Travel & Places",
+        "hint": "Walking tours, hidden gems, local life",
+        "base_topics": ["travel", "walking tour"],
+        "queries": [
+            "walking tour hidden gems city",
+            "travel documentary remote places",
+            "local street life culture",
+        ],
+        "queries_ru": [
+            "путешествия по России влог",
+            "городские прогулки интересные места",
+            "необычные места мира",
         ],
     },
 }

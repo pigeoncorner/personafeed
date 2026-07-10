@@ -6,7 +6,6 @@ const FILTERS_KEY = "pf_filters";
 
 let allCategories = [];
 let selectedIds = [];
-let currentIds = [];
 let currentSource = localStorage.getItem(SOURCE_KEY) || "youtube";
 
 const DEFAULT_FILTERS = {
@@ -16,7 +15,7 @@ const DEFAULT_FILTERS = {
 let filterState = { ...DEFAULT_FILTERS };
 try {
   filterState = { ...DEFAULT_FILTERS, ...JSON.parse(localStorage.getItem(FILTERS_KEY) || "{}") };
-} catch (e) { /* повреждённый state — остаёмся на дефолтах */ }
+} catch (e) { /* corrupted state — use defaults */ }
 
 /* ---------- Formatting ---------- */
 
@@ -31,12 +30,15 @@ function formatDuration(sec) {
 
 function formatViews(n) {
   if (!n) return "";
-  let val, unit;
-  if (n >= 1e6) { val = n / 1e6; unit = "млн"; }
-  else if (n >= 1e3) { val = n / 1e3; unit = "тыс."; }
-  else return `${n} просмотров`;
-  const str = val >= 10 ? Math.round(val).toString() : val.toFixed(1).replace(".", ",").replace(",0", "");
-  return `${str} ${unit} просмотров`;
+  if (n >= 1e6) {
+    const val = n / 1e6;
+    return `${val >= 10 ? Math.round(val) : val.toFixed(1).replace(".0", "")}M views`;
+  }
+  if (n >= 1e3) {
+    const val = n / 1e3;
+    return `${val >= 10 ? Math.round(val) : val.toFixed(1).replace(".0", "")}K views`;
+  }
+  return `${n} views`;
 }
 
 function formatTimeAgo(iso) {
@@ -44,25 +46,14 @@ function formatTimeAgo(iso) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   if (diff < 0 || Number.isNaN(diff)) return "";
   const units = [
-    [31536000, ["год", "года", "лет"]],
-    [2592000,  ["месяц", "месяца", "месяцев"]],
-    [604800,   ["неделю", "недели", "недель"]],
-    [86400,    ["день", "дня", "дней"]],
-    [3600,     ["час", "часа", "часов"]],
-    [60,       ["минуту", "минуты", "минут"]],
+    [31536000, "year"], [2592000, "month"], [604800, "week"],
+    [86400, "day"], [3600, "hour"], [60, "minute"],
   ];
-  for (const [secs, forms] of units) {
+  for (const [secs, unit] of units) {
     const n = Math.floor(diff / secs);
-    if (n >= 1) return `${n} ${plural(n, forms)} назад`;
+    if (n >= 1) return `${n} ${unit}${n !== 1 ? "s" : ""} ago`;
   }
-  return "только что";
-}
-
-function plural(n, [one, few, many]) {
-  const mod10 = n % 10, mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
+  return "just now";
 }
 
 function escHtml(str) {
@@ -164,31 +155,31 @@ function onFilterChange(key, value) {
   sanitizeFiltersForSource();
   saveFilters();
   syncFiltersUI();
-  loadGrid(currentIds);
+  loadGrid(selectedIds);
 }
 
 function applyPreset(name) {
   if (filterState.preset === name) {
-    filterState = { ...DEFAULT_FILTERS }; // повторный клик по пресету — сброс
+    filterState = { ...DEFAULT_FILTERS };
   } else {
     filterState = { ...DEFAULT_FILTERS, ...PRESETS[name], preset: name };
   }
   sanitizeFiltersForSource();
   saveFilters();
   syncFiltersUI();
-  loadGrid(currentIds);
+  loadGrid(selectedIds);
 }
 
 function resetFilters() {
   filterState = { ...DEFAULT_FILTERS };
   saveFilters();
   syncFiltersUI();
-  loadGrid(currentIds);
+  loadGrid(selectedIds);
 }
 
-/* ---------- Onboarding ---------- */
+/* ---------- Category panel ---------- */
 
-function renderOnboarding() {
+function renderCategoryPanel() {
   const grid = $("category-grid");
   grid.innerHTML = "";
   allCategories.forEach(({ id, emoji, label, hint }) => {
@@ -201,67 +192,27 @@ function renderOnboarding() {
       <span class="cat-hint">${escHtml(hint)}</span>`;
     card.addEventListener("click", () => {
       const idx = selectedIds.indexOf(id);
-      if (idx === -1) selectedIds.push(id);
-      else selectedIds.splice(idx, 1);
-      card.classList.toggle("selected");
-      $("onboarding-continue").disabled = selectedIds.length === 0;
+      if (idx === -1) {
+        selectedIds.push(id);
+        card.classList.add("selected");
+      } else {
+        if (selectedIds.length === 1) return;
+        selectedIds.splice(idx, 1);
+        card.classList.remove("selected");
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
+      loadGrid(selectedIds);
     });
     grid.appendChild(card);
   });
-  $("onboarding-continue").disabled = selectedIds.length === 0;
 }
 
-function finishOnboarding() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
-  renderChips();
-  $("chips-row").classList.remove("hidden");
-  $("filters-row").classList.remove("hidden");
-  $("surprise-btn").classList.remove("hidden");
-  $("source-toggle").classList.remove("hidden");
-  updateSourceToggle();
-  syncFiltersUI();
-  loadGrid(selectedIds);
-}
-
-/* ---------- Chips ---------- */
-
-function renderChips() {
-  const row = $("chips-row");
-  row.innerHTML = "";
-
-  const allChip = document.createElement("button");
-  allChip.className = "chip";
-  allChip.dataset.category = "__all__";
-  allChip.textContent = "Все";
-  allChip.addEventListener("click", () => loadGrid(selectedIds));
-  row.appendChild(allChip);
-
-  selectedIds.forEach((id) => {
-    const cat = allCategories.find((c) => c.id === id);
-    if (!cat) return;
-    const chip = document.createElement("button");
-    chip.className = "chip";
-    chip.dataset.category = id;
-    chip.textContent = `${cat.emoji} ${cat.label}`;
-    chip.addEventListener("click", () => loadGrid([id]));
-    row.appendChild(chip);
-  });
-
-  const settings = document.createElement("button");
-  settings.className = "chip";
-  settings.title = "Изменить категории";
-  settings.textContent = "⚙";
-  settings.addEventListener("click", () => {
-    renderOnboarding();
-    showState("onboarding");
-  });
-  row.appendChild(settings);
-}
-
-function setActiveChip(categoryId) {
-  document.querySelectorAll(".chip").forEach((c) => {
-    c.classList.toggle("active", !!categoryId && c.dataset.category === categoryId);
-  });
+function toggleSettings() {
+  const panel = $("category-panel");
+  const arrow = $("settings-arrow");
+  const willOpen = panel.classList.contains("hidden");
+  panel.classList.toggle("hidden");
+  arrow.textContent = willOpen ? "⌃" : "⌄";
 }
 
 /* ---------- Rendering ---------- */
@@ -323,10 +274,8 @@ function renderVideoCard(item) {
 function openPlayer(item) {
   let iframeSrc;
   if (item.embed_url) {
-    // RuTube / VK embed
     iframeSrc = item.embed_url;
   } else if (item.video_id) {
-    // YouTube embed
     iframeSrc = `https://www.youtube.com/embed/${encodeURIComponent(item.video_id)}?autoplay=1`;
   } else {
     window.open(item.url, "_blank", "noopener");
@@ -349,13 +298,11 @@ function closePlayer() {
 /* ---------- Grid loading ---------- */
 
 function showState(state) {
-  ["onboarding", "loading", "feed"].forEach((id) => $(id).classList.add("hidden"));
+  ["loading", "feed"].forEach((id) => $(id).classList.add("hidden"));
   $(state).classList.remove("hidden");
 }
 
 async function loadGrid(categoryIds) {
-  const chipKey = categoryIds.length === 1 ? categoryIds[0] : "__all__";
-  setActiveChip(chipKey);
   renderSkeletons();
   showState("loading");
 
@@ -373,7 +320,7 @@ async function loadGrid(categoryIds) {
     data = await res.json();
   } catch (e) {
     showState("feed");
-    $("video-grid").innerHTML = `<p class="error-msg">Не удалось загрузить ленту: ${escHtml(e.message)}</p>`;
+    $("video-grid").innerHTML = `<p class="error-msg">Failed to load feed: ${escHtml(e.message)}</p>`;
     return;
   }
 
@@ -390,7 +337,7 @@ async function init() {
     const res = await fetch("/categories");
     allCategories = await res.json();
   } catch (e) {
-    alert("Не удалось загрузить категории. Проверьте, что сервер запущен.");
+    alert("Could not load categories. Make sure the server is running.");
     return;
   }
 
@@ -398,27 +345,31 @@ async function init() {
   selectedIds = stored ? JSON.parse(stored) : [];
   selectedIds = selectedIds.filter((id) => allCategories.some((c) => c.id === id));
 
+  renderCategoryPanel();
+
+  $("slogan-bar").classList.remove("hidden");
+  $("settings-row").classList.remove("hidden");
+  $("source-toggle").classList.remove("hidden");
+  $("new-feed-btn").classList.remove("hidden");
+  updateSourceToggle();
+  $("filters-row").classList.remove("hidden");
+  syncFiltersUI();
+
   if (selectedIds.length === 0) {
-    renderOnboarding();
-    showState("onboarding");
+    $("category-panel").classList.remove("hidden");
+    $("settings-arrow").textContent = "⌃";
   } else {
-    renderChips();
-    $("chips-row").classList.remove("hidden");
-    $("filters-row").classList.remove("hidden");
-    $("surprise-btn").classList.remove("hidden");
-    $("source-toggle").classList.remove("hidden");
-    updateSourceToggle();
-    syncFiltersUI();
+    $("category-panel").classList.add("hidden");
     loadGrid(selectedIds);
   }
 }
 
 /* ---------- Events ---------- */
 
-$("onboarding-continue").addEventListener("click", finishOnboarding);
-$("surprise-btn").addEventListener("click", () => loadGrid(selectedIds));
+$("new-feed-btn").addEventListener("click", () => loadGrid(selectedIds));
 $("src-youtube").addEventListener("click", () => setSource("youtube"));
 $("src-ru").addEventListener("click", () => setSource("ru"));
+$("settings-toggle").addEventListener("click", toggleSettings);
 
 $("modal-close").addEventListener("click", closePlayer);
 document.querySelector(".modal-backdrop").addEventListener("click", closePlayer);

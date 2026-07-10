@@ -89,7 +89,7 @@ def test_grid_single_category():
 def test_grid_items_have_category_label():
     response = client.post("/grid", json={"categories": ["history"]})
     items = response.json()["items"]
-    assert items[0]["category_label"] == "История"
+    assert items[0]["category_label"] == "History"
 
 
 def test_grid_items_have_source_and_embed():
