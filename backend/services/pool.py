@@ -94,14 +94,24 @@ def _fetch(cat: dict, source: str) -> list[dict]:
 
 
 def get_pool(cat: dict, source: str) -> list[dict]:
-    """Return pool for category+source, fetching synchronously if missing or stale."""
+    """Return pool for category+source, fetching synchronously if missing or stale.
+
+    On fetch failure (quota, network, etc.) returns stale videos if available,
+    otherwise returns empty list — never raises to callers.
+    """
     pool_key = f"{cat['id']}:{source}"
     with _lock:
         pool = _pools.get(pool_key)
         if pool and not _is_stale(pool):
             return pool["videos"]
+        fallback = pool["videos"] if pool else []
 
-    videos = _fetch(cat, source)
+    try:
+        videos = _fetch(cat, source)
+    except Exception as exc:
+        logger.warning("Failed to fetch pool for '%s' source='%s': %s", cat["id"], source, exc)
+        return fallback
+
     with _lock:
         _pools[pool_key] = {"version": _POOL_VERSION, "fetched_at": time.time(), "videos": videos}
         _save_to_disk()
