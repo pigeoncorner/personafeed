@@ -36,9 +36,12 @@ def _make_videos(prefix: str, count: int, source: str = "youtube") -> list[dict]
 
 
 @pytest.fixture(autouse=True)
-def reset_pools():
+def reset_pools(tmp_path):
     pool_service._pools.clear()
+    orig_file = pool_service._POOLS_FILE
+    pool_service._POOLS_FILE = tmp_path / "pools.json"
     yield
+    pool_service._POOLS_FILE = orig_file
     pool_service._pools.clear()
 
 

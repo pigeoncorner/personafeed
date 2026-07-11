@@ -1,3 +1,4 @@
+import html as _html
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -111,8 +112,8 @@ def search_videos(
             results.append(
                 {
                     "video_id": video_id,
-                    "title": snippet["title"],
-                    "channel": snippet["channelTitle"],
+                    "title": _html.unescape(snippet["title"]),
+                    "channel": _html.unescape(snippet["channelTitle"]),
                     "channel_id": snippet.get("channelId", ""),
                     "url": f"https://www.youtube.com/watch?v={video_id}",
                     "thumbnail": snippet["thumbnails"]["medium"]["url"],

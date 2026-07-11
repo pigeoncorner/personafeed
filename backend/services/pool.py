@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 _POOLS_FILE = Path("data/pools.json")
 _TTL = 86400 * 7  # 7 days
-_MAX_PER_QUERY = 10
+_MAX_PER_QUERY = 25
 # версия формата записи пула: несовпадение → пул перезапрашивается
 # (v2 добавила likes/comments/channel_* — старый кеш без них бесполезен для фильтров)
 _POOL_VERSION = 2

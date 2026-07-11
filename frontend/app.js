@@ -4,6 +4,37 @@ const STORAGE_KEY = "pf_categories";
 const SOURCE_KEY = "pf_source";
 const FILTERS_KEY = "pf_filters";
 
+const CATEGORY_ICONS = {
+  science:    `<circle cx="12" cy="12" r="1.5"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(0 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(120 12 12)"/>`,
+  history:    `<path d="M3 21V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v13"/><path d="M3 10h18"/><line x1="7" y1="3" x2="7" y2="6"/><line x1="17" y1="3" x2="17" y2="6"/>`,
+  art:        `<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>`,
+  tech:       `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
+  software:   `<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>`,
+  nature:     `<path d="M17 8C8 10 5.9 16.17 3.82 22"/><path d="M9.5 9.1C9.5 9.1 8 13 12 14.5c-1 1.5-3.2 2-5 1.5"/><path d="M14.5 7C14.5 7 18 10 16 14c2 0 4-1 5-3"/>`,
+  philosophy: `<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24A2.5 2.5 0 0 0 14.5 2Z"/>`,
+  food:       `<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><line x1="7" y1="2" x2="7" y2="11"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>`,
+  games:      `<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4m-2-2v4"/><circle cx="17" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/>`,
+  music:      `<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>`,
+  health:     `<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`,
+  business:   `<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>`,
+  culture:    `<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>`,
+  education:  `<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>`,
+  literature: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>`,
+  movies:     `<rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>`,
+  sports:     `<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>`,
+  home:       `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
+  fun:        `<circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>`,
+  travel:     `<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>`,
+};
+
+const PRESET_META = {
+  latest:    { label: "Default",        icon: `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>` },
+  rising:    { label: "Top Rising",    icon: `<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>` },
+  leaders:   { label: "Top Bloggers",  icon: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>` },
+  discussed: { label: "Top Commented", icon: `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>` },
+  viral:     { label: "Viral Videos",  icon: `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>` },
+};
+
 let allCategories = [];
 let selectedIds = [];
 let currentSource = localStorage.getItem(SOURCE_KEY) || "youtube";
@@ -84,6 +115,7 @@ function setSource(src) {
 /* ---------- Filters ---------- */
 
 const PRESETS = {
+  latest:    {},
   rising:    { period: "30", views: "lt10k", channel: "young", sort: "velocity" },
   leaders:   { channel: "top", sort: "views" },
   discussed: { comments: "100", sort: "comments" },
@@ -129,24 +161,7 @@ function buildFilterPayload() {
 }
 
 function syncFiltersUI() {
-  $("f-period").value = filterState.period;
-  $("f-views").value = filterState.views;
-  $("f-comments").value = filterState.comments;
-  $("f-duration").value = filterState.duration;
-  $("f-channel").value = filterState.channel;
-  $("f-sort").value = filterState.sort;
-
-  const isRu = currentSource === "ru";
-  document.querySelectorAll(".yt-only").forEach((el) => el.classList.toggle("hidden", isRu));
-  YT_ONLY_SORTS.forEach((sortKey) => {
-    const opt = document.querySelector(`#f-sort option[value="${sortKey}"]`);
-    if (opt) opt.hidden = isRu;
-  });
-
-  document.querySelectorAll(".preset-chip").forEach((c) => {
-    c.classList.toggle("active", !!filterState.preset && c.dataset.preset === filterState.preset);
-  });
-  $("filters-reset").classList.toggle("hidden", isFiltersDefault());
+  renderPresetsCompact();
 }
 
 function onFilterChange(key, value) {
@@ -186,8 +201,9 @@ function renderCategoryPanel() {
     const card = document.createElement("div");
     card.className = "category-card" + (selectedIds.includes(id) ? " selected" : "");
     card.dataset.id = id;
+    const iconPaths = CATEGORY_ICONS[id] || '';
     card.innerHTML = `
-      <span class="cat-emoji">${emoji}</span>
+      <span class="cat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths}</svg></span>
       <span class="cat-label">${escHtml(label)}</span>
       <span class="cat-hint">${escHtml(hint)}</span>`;
     card.addEventListener("click", () => {
@@ -201,18 +217,105 @@ function renderCategoryPanel() {
         card.classList.remove("selected");
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
+      renderTopicsCompact();
       loadGrid(selectedIds);
     });
     grid.appendChild(card);
   });
 }
 
-function toggleSettings() {
-  const panel = $("category-panel");
-  const arrow = $("settings-arrow");
-  const willOpen = panel.classList.contains("hidden");
-  panel.classList.toggle("hidden");
-  arrow.textContent = willOpen ? "⌃" : "⌄";
+function closeFlyouts() {
+  $("topics-flyout").classList.add("hidden");
+  $("presets-flyout").classList.add("hidden");
+  $("topics-compact").setAttribute("aria-expanded", "false");
+  $("presets-compact").setAttribute("aria-expanded", "false");
+  $("topics-chevron-icon").classList.remove("open");
+  $("presets-chevron-icon").classList.remove("open");
+}
+
+function toggleTopicsFlyout(e) {
+  e.stopPropagation();
+  const isOpen = !$("topics-flyout").classList.contains("hidden");
+  closeFlyouts();
+  if (!isOpen) {
+    $("topics-flyout").classList.remove("hidden");
+    $("topics-compact").setAttribute("aria-expanded", "true");
+    $("topics-chevron-icon").classList.add("open");
+  }
+}
+
+function togglePresetsFlyout(e) {
+  e.stopPropagation();
+  const isOpen = !$("presets-flyout").classList.contains("hidden");
+  closeFlyouts();
+  if (!isOpen) {
+    renderPresetsFlyout();
+    $("presets-flyout").classList.remove("hidden");
+    $("presets-compact").setAttribute("aria-expanded", "true");
+    $("presets-chevron-icon").classList.add("open");
+    positionPresetsFlyout();
+  }
+}
+
+function positionPresetsFlyout() {
+  const btn = $("presets-compact");
+  const flyout = $("presets-flyout");
+  const rect = btn.getBoundingClientRect();
+  flyout.style.top = (rect.bottom + 4) + "px";
+  flyout.style.left = rect.left + "px";
+}
+
+function renderTopicsCompact() {
+  const summary = $("topics-summary");
+  if (!summary) return;
+  if (allCategories.length === 0) { summary.innerHTML = ""; return; }
+  const allSelected = selectedIds.length === allCategories.length;
+  if (allSelected || selectedIds.length === 0) {
+    summary.innerHTML = `<span class="summary-all">All</span>`;
+  } else {
+    const icons = selectedIds.slice(0, 4).map((id) => {
+      const paths = CATEGORY_ICONS[id] || "";
+      return `<svg class="topic-thumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+    }).join("");
+    const overflow = selectedIds.length > 4
+      ? `<span class="summary-overflow">+${selectedIds.length - 4}</span>`
+      : "";
+    summary.innerHTML = icons + overflow;
+  }
+}
+
+function renderPresetsCompact() {
+  const summary = $("presets-summary");
+  if (!summary) return;
+  const key = filterState.preset || "latest";
+  const meta = PRESET_META[key] || PRESET_META.latest;
+  summary.innerHTML = `<svg class="preset-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${meta.icon}</svg><span>${escHtml(meta.label)}</span>`;
+}
+
+function renderPresetsFlyout() {
+  const grid = $("presets-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  const isRu = currentSource === "ru";
+  const activeKey = filterState.preset || "latest";
+  Object.entries(PRESET_META).forEach(([key, { label, icon }]) => {
+    const isYtOnly = YT_ONLY_PRESETS.includes(key);
+    const btn = document.createElement("button");
+    btn.className = "preset-option" +
+      (key === activeKey ? " active" : "") +
+      (isRu && isYtOnly ? " yt-only-disabled" : "");
+    if (isRu && isYtOnly) btn.disabled = true;
+    btn.innerHTML = `<svg class="preset-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg><span>${escHtml(label)}</span>`;
+    btn.addEventListener("click", () => {
+      if (key === "latest") {
+        resetFilters();
+      } else {
+        applyPreset(key);
+      }
+      closeFlyouts();
+    });
+    grid.appendChild(btn);
+  });
 }
 
 /* ---------- Rendering ---------- */
@@ -348,18 +451,34 @@ async function init() {
   renderCategoryPanel();
 
   $("slogan-bar").classList.remove("hidden");
-  $("settings-row").classList.remove("hidden");
+  $("toolbar").classList.remove("hidden");
   $("source-toggle").classList.remove("hidden");
   $("new-feed-btn").classList.remove("hidden");
   updateSourceToggle();
-  $("filters-row").classList.remove("hidden");
-  syncFiltersUI();
+  renderTopicsCompact();
+  renderPresetsCompact();
+
+  $("topics-select-all").addEventListener("click", () => {
+    selectedIds = allCategories.map((c) => c.id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
+    renderCategoryPanel();
+    renderTopicsCompact();
+    loadGrid(selectedIds);
+  });
+  $("topics-clear").addEventListener("click", () => {
+    if (selectedIds.length <= 1) return;
+    selectedIds = [selectedIds[0]];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
+    renderCategoryPanel();
+    renderTopicsCompact();
+    loadGrid(selectedIds);
+  });
 
   if (selectedIds.length === 0) {
-    $("category-panel").classList.remove("hidden");
-    $("settings-arrow").textContent = "⌃";
+    $("topics-flyout").classList.remove("hidden");
+    $("topics-compact").setAttribute("aria-expanded", "true");
+    $("topics-chevron-icon").classList.add("open");
   } else {
-    $("category-panel").classList.add("hidden");
     loadGrid(selectedIds);
   }
 }
@@ -369,22 +488,18 @@ async function init() {
 $("new-feed-btn").addEventListener("click", () => loadGrid(selectedIds));
 $("src-youtube").addEventListener("click", () => setSource("youtube"));
 $("src-ru").addEventListener("click", () => setSource("ru"));
-$("settings-toggle").addEventListener("click", toggleSettings);
+$("topics-compact").addEventListener("click", toggleTopicsFlyout);
+$("presets-compact").addEventListener("click", togglePresetsFlyout);
 
 $("modal-close").addEventListener("click", closePlayer);
 document.querySelector(".modal-backdrop").addEventListener("click", closePlayer);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("player-modal").classList.contains("hidden")) closePlayer();
 });
-
-$("filters-toggle").addEventListener("click", () => $("filters-panel").classList.toggle("hidden"));
-["period", "views", "comments", "duration", "channel"].forEach((key) => {
-  $(`f-${key}`).addEventListener("change", (e) => onFilterChange(key, e.target.value));
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#toolbar") && !e.target.closest("#topics-flyout") && !e.target.closest("#presets-flyout")) {
+    closeFlyouts();
+  }
 });
-$("f-sort").addEventListener("change", (e) => onFilterChange("sort", e.target.value));
-document.querySelectorAll(".preset-chip").forEach((c) => {
-  c.addEventListener("click", () => applyPreset(c.dataset.preset));
-});
-$("filters-reset").addEventListener("click", resetFilters);
 
 init();

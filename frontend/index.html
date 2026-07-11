@@ -4,12 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>StumbleFeed — Escape your algorithm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png" />
   <link rel="shortcut icon" href="favicon.ico" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="manifest" href="site.webmanifest" />
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 <body>
   <!-- Topbar -->
@@ -22,7 +25,13 @@
       </div>
     </div>
     <div class="topbar-center">
-      <button id="new-feed-btn" class="hidden" title="Get a new shuffled feed">🎲 Get New Feed</button>
+      <button id="new-feed-btn" class="hidden" title="Get a new shuffled feed">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+          <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+        </svg>
+        Shuffle Feed
+      </button>
     </div>
     <div class="topbar-right">
       <div id="source-toggle" class="hidden">
@@ -37,82 +46,32 @@
     Step outside your infobubble, every day. Watch what you choose, not what the algorithm chooses for you.
   </div>
 
-  <!-- Settings toggle -->
-  <div id="settings-row" class="hidden">
-    <button id="settings-toggle">⚙ Settings <span id="settings-arrow">⌄</span></button>
+  <!-- Toolbar -->
+  <div id="toolbar" class="hidden">
+    <div id="topics-compact" class="compact-selector" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
+      <span class="compact-label">Topics</span>
+      <span id="topics-summary"></span>
+      <svg class="chevron-icon" id="topics-chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div id="presets-compact" class="compact-selector" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
+      <span class="compact-label">Presets</span>
+      <span id="presets-summary"></span>
+      <svg class="chevron-icon" id="presets-chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
   </div>
 
-  <!-- Category panel -->
-  <div id="category-panel">
-    <p class="category-panel-intro">Choose from 20 topics and get a shuffled grid of videos from YouTube without any algorithm</p>
+  <!-- Topics flyout (full-width panel) -->
+  <div id="topics-flyout" class="topics-flyout hidden">
+    <div class="flyout-actions">
+      <button id="topics-select-all" class="chip">Select All</button>
+      <button id="topics-clear" class="chip">Clear</button>
+    </div>
     <div id="category-grid"></div>
   </div>
 
-  <!-- Filters -->
-  <div id="filters-row" class="hidden">
-    <button id="filters-toggle" class="chip" title="Filter settings">🎛 Filters</button>
-    <button class="chip preset-chip" data-preset="rising"
-      title="Under 10K views, channels under a year old, last 30 days, by velocity">🌱 Rising</button>
-    <button class="chip preset-chip yt-only" data-preset="leaders"
-      title="Channels with 100K+ subscribers, by views">👑 Niche Leaders</button>
-    <button class="chip preset-chip yt-only" data-preset="discussed"
-      title="100+ comments, by comments">💬 Discussions</button>
-    <button class="chip preset-chip yt-only" data-preset="viral"
-      title="Views significantly outpace channel subscribers">🎯 Viral</button>
-    <button id="filters-reset" class="chip hidden">✖ Reset</button>
-  </div>
-  <div id="filters-panel" class="hidden">
-    <label>Period
-      <select id="f-period">
-        <option value="">all time</option>
-        <option value="7">7 days</option>
-        <option value="30">30 days</option>
-        <option value="90">90 days</option>
-      </select>
-    </label>
-    <label>Views
-      <select id="f-views">
-        <option value="">any</option>
-        <option value="lt10k">under 10K</option>
-        <option value="mid">10K–100K</option>
-        <option value="gt100k">100K+</option>
-      </select>
-    </label>
-    <label class="yt-only">Comments
-      <select id="f-comments">
-        <option value="">any</option>
-        <option value="10">10+</option>
-        <option value="100">100+</option>
-        <option value="1000">1000+</option>
-      </select>
-    </label>
-    <label>Duration
-      <select id="f-duration">
-        <option value="">any</option>
-        <option value="noshorts">no Shorts</option>
-        <option value="lt4">under 4 min</option>
-        <option value="4to20">4–20 min</option>
-        <option value="gt20">20+ min</option>
-      </select>
-    </label>
-    <label class="yt-only">Channels
-      <select id="f-channel">
-        <option value="">any</option>
-        <option value="top">top (100K+ subs)</option>
-        <option value="small">small (under 10K)</option>
-        <option value="young">new (under 1 year)</option>
-      </select>
-    </label>
-    <label>Sort
-      <select id="f-sort">
-        <option value="random">random</option>
-        <option value="date">newest first</option>
-        <option value="views">by views</option>
-        <option value="comments">by comments</option>
-        <option value="engagement">by engagement</option>
-        <option value="velocity">by velocity</option>
-      </select>
-    </label>
+  <!-- Presets flyout (dropdown) -->
+  <div id="presets-flyout" class="presets-flyout hidden">
+    <div id="presets-grid"></div>
   </div>
 
   <main>
@@ -144,6 +103,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
