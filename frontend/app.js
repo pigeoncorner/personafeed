@@ -1,5 +1,9 @@
 const $ = (id) => document.getElementById(id);
 
+const API_BASE = window.location.hostname.includes("stumblefeed.me")
+  ? "https://api.stumblefeed.me"
+  : "";
+
 const STORAGE_KEY = "pf_categories";
 const SOURCE_KEY = "pf_source";
 const FILTERS_KEY = "pf_filters";
@@ -411,7 +415,7 @@ async function loadGrid(categoryIds) {
 
   let data;
   try {
-    const res = await fetch("/grid", {
+    const res = await fetch(`${API_BASE}/grid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ categories: categoryIds, limit: 40, source: currentSource, filters: buildFilterPayload(), sort: filterState.sort }),
@@ -437,7 +441,7 @@ async function loadGrid(categoryIds) {
 
 async function init() {
   try {
-    const res = await fetch("/categories");
+    const res = await fetch(`${API_BASE}/categories`);
     allCategories = await res.json();
   } catch (e) {
     alert("Could not load categories. Make sure the server is running.");

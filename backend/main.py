@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.categories import CATEGORIES
@@ -37,6 +38,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="PersonaFeed", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://stumblefeed.me",
+        "https://www.stumblefeed.me",
+        "https://personafeed.pages.dev",
+        "http://localhost:8000",
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 app.include_router(feed.router)
 

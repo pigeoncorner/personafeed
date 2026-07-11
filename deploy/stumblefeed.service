@@ -1,0 +1,17 @@
+[Unit]
+Description=StumbleFeed API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/stumblefeed
+EnvironmentFile=/opt/stumblefeed/.env
+ExecStart=/opt/stumblefeed/venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8001 --workers 2
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
