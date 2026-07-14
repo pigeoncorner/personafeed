@@ -1,0 +1,14 @@
+dev-api.stumblefeed.me {
+    reverse_proxy localhost:8003
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/stumblefeed-dev-access.log
+        format json
+    }
+}
