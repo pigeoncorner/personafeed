@@ -55,10 +55,11 @@ app.add_middleware(
 
 app.include_router(feed.router)
 
-# StaticFiles регистрируется после роутеров — иначе перекроет /grid и /categories
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
-
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# StaticFiles монтируется последним — иначе перекроет все API-роуты
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
