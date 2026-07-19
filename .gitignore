@@ -12,3 +12,4 @@ node_modules/
 venv/
 plan.md
 researchplan.md
+_aux/
