@@ -1,12 +1,32 @@
 const $ = (id) => document.getElementById(id);
 
-const API_BASE = window.location.hostname.includes("stumblefeed.me")
-  ? "https://api.stumblefeed.me"
-  : "";
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
 const STORAGE_KEY = "pf_categories";
 const SOURCE_KEY = "pf_source";
 const FILTERS_KEY = "pf_filters";
+
+const RU_TIMEZONES = new Set([
+  "Europe/Kaliningrad", "Europe/Moscow", "Europe/Simferopol", "Europe/Volgograd",
+  "Europe/Saratov", "Europe/Astrakhan", "Europe/Ulyanovsk", "Europe/Samara",
+  "Europe/Kirov", "Asia/Yekaterinburg", "Asia/Omsk", "Asia/Novosibirsk",
+  "Asia/Barnaul", "Asia/Tomsk", "Asia/Novokuznetsk", "Asia/Krasnoyarsk",
+  "Asia/Irkutsk", "Asia/Chita", "Asia/Yakutsk", "Asia/Khandyga",
+  "Asia/Vladivostok", "Asia/Ust-Nera", "Asia/Magadan", "Asia/Sakhalin",
+  "Asia/Srednekolymsk", "Asia/Kamchatka", "Asia/Anadyr",
+  "Europe/Istanbul", // для тестирования (Алания, Турция)
+]);
+
+function isRuUser() {
+  const langs = navigator.languages || [navigator.language];
+  const isRuLang = langs.some((l) => l && l.toLowerCase().startsWith("ru"));
+  if (!isRuLang) return false;
+  try {
+    return RU_TIMEZONES.has(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  } catch {
+    return false;
+  }
+}
 
 const CATEGORY_ICONS = {
   science:    `<circle cx="12" cy="12" r="1.5"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(0 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(120 12 12)"/>`,
@@ -42,6 +62,10 @@ const PRESET_META = {
 let allCategories = [];
 let selectedIds = [];
 let currentSource = localStorage.getItem(SOURCE_KEY) || "youtube";
+if (!isRuUser() && currentSource === "ru") {
+  currentSource = "youtube";
+  localStorage.setItem(SOURCE_KEY, "youtube");
+}
 
 const DEFAULT_FILTERS = {
   period: "", views: "", comments: "", duration: "", channel: "",
@@ -456,7 +480,7 @@ async function init() {
 
   $("slogan-bar").classList.remove("hidden");
   $("toolbar").classList.remove("hidden");
-  $("source-toggle").classList.remove("hidden");
+  if (isRuUser()) $("source-toggle").classList.remove("hidden");
   $("new-feed-btn").classList.remove("hidden");
   updateSourceToggle();
   renderTopicsCompact();

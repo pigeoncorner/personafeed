@@ -45,7 +45,9 @@ app.add_middleware(
         "https://stumblefeed.me",
         "https://www.stumblefeed.me",
         "https://personafeed.pages.dev",
+        "https://dev.personafeed.pages.dev",
         "http://localhost:8000",
+        "http://localhost:5173",
     ],
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
@@ -53,10 +55,11 @@ app.add_middleware(
 
 app.include_router(feed.router)
 
-# StaticFiles регистрируется после роутеров — иначе перекроет /grid и /categories
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
-
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# StaticFiles монтируется последним — иначе перекроет все API-роуты
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
